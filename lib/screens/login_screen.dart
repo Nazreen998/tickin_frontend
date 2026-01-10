@@ -1,6 +1,7 @@
 // ignore_for_file: unused_import, unused_local_variable, dead_code
 
 import 'dart:convert';
+import 'package:book_yours/screens/driver_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../app_scope.dart';
@@ -46,7 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final userMapRaw = (res["user"] ?? res["profile"] ?? res["data"] ?? res);
 
       if (token.isEmpty) throw Exception("Token missing in login response");
-      if (userMapRaw is! Map) throw Exception("User object missing in response");
+      if (userMapRaw is! Map) {
+        throw Exception("User object missing in response");
+      }
 
       final userMap = userMapRaw.cast<String, dynamic>();
 
@@ -69,12 +72,18 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(builder: (_) => const ManagerDashboardScreen()),
         );
-      } else {
       }
+      if (role == "DRIVER" || role == "LOADMAN") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
+        );
+      } else {}
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("❌ Login failed: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("❌ Login failed: $e")));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -88,7 +97,9 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -115,7 +126,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       prefixIcon: const Icon(Icons.lock),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        icon: Icon(_showPwd ? Icons.visibility : Icons.visibility_off),
+                        icon: Icon(
+                          _showPwd ? Icons.visibility : Icons.visibility_off,
+                        ),
                         onPressed: () => setState(() => _showPwd = !_showPwd),
                       ),
                     ),

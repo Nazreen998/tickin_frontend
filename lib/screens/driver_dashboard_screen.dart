@@ -1,57 +1,30 @@
 // ignore_for_file: unused_import
 
+import 'package:book_yours/screens/driver_orders.dart';
 import 'package:flutter/material.dart';
 
 import 'create_order_screen.dart';
 import 'slots/slot_booking_screen.dart';
 
-// ✅ NEW import: slot-confirmed flow list screen
-import 'manager_orders_with_slot_screen.dart';
-
-class ManagerDashboardScreen extends StatelessWidget {
-  const ManagerDashboardScreen({super.key});
+class DriverDashboardScreen extends StatelessWidget {
+  const DriverDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Manager Dashboard")),
+      appBar: AppBar(title: const Text("Driver Dashboard")),
       body: GridView.count(
         padding: const EdgeInsets.all(20),
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
         children: [
-          _card(context, Icons.event_available, "Slot Booking", () {
+          _card(context, Icons.account_tree, "My Orders", () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const SlotBookingScreen(
-                  role: "MANAGER",
-                  distributorCode: "MANAGER",
-                  distributorName: "MANAGER",
-                ),
-              ),
+              MaterialPageRoute(builder: (_) => const DriverOrdersScreen()),
             );
           }),
-
-          _card(context, Icons.account_tree, "Orders Flow", () {
-            // ✅ FIX: Open Slot Confirmed Flow List (NOT All Orders)
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const ManagerOrdersWithSlotScreen(),
-              ),
-            );
-          }),
-
-          _card(context, Icons.track_changes, "Tracking", () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Tracking open from Order Details screen"),
-              ),
-            );
-          }),
-
           _card(context, Icons.add_box_rounded, "Create Order", () {
             Navigator.push(
               context,

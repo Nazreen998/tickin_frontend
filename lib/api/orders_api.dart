@@ -12,11 +12,14 @@ class OrdersApi {
     required String distributorName,
     required List<Map<String, dynamic>> items,
   }) {
-    return client.post("$_b/create", body: {
-      "distributorId": distributorId,
-      "distributorName": distributorName,
-      "items": items,
-    });
+    return client.post(
+      "$_b/create",
+      body: {
+        "distributorId": distributorId,
+        "distributorName": distributorName,
+        "items": items,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> confirmDraft(String orderId) {
@@ -28,10 +31,10 @@ class OrdersApi {
     required String companyCode,
     Map<String, dynamic>? slot,
   }) {
-    return client.post("$_b/confirm/$orderId", body: {
-      "companyCode": companyCode,
-      if (slot != null) "slot": slot,
-    });
+    return client.post(
+      "$_b/confirm/$orderId",
+      body: {"companyCode": companyCode, if (slot != null) "slot": slot},
+    );
   }
 
   Future<Map<String, dynamic>> updateItems({
@@ -63,13 +66,17 @@ class OrdersApi {
   }
 
   Future<Map<String, dynamic>> all({String? status}) {
-    return client.get("$_b/all", query: status == null ? null : {"status": status});
+    return client.get(
+      "$_b/all",
+      query: status == null ? null : {"status": status},
+    );
   }
 
   Future<Map<String, dynamic>> cancelSlotBooking({required String orderId}) {
-    return client.post("${ApiConfig.orders}/cancel-slot", body: {
-      "orderId": orderId,
-    });
+    return client.post(
+      "${ApiConfig.orders}/cancel-slot",
+      body: {"orderId": orderId},
+    );
   }
 
   Future<Map<String, dynamic>> my() {
@@ -109,11 +116,19 @@ class OrdersApi {
       if (companyCode == null || companyCode.isEmpty) {
         throw ApiException("companyCode missing");
       }
-      final confirmed = await confirmOrder(orderId: orderId, companyCode: companyCode);
+      final confirmed = await confirmOrder(
+        orderId: orderId,
+        companyCode: companyCode,
+      );
       if (confirmed["ok"] == false) throw ApiException("Confirm failed");
       return {...created, "status": "CONFIRMED"};
     }
 
     return created;
+  }
+
+  /// 🚚 Driver - Assigned orders
+  Future<Map<String, dynamic>> getDriverAssignedOrders() {
+    return client.get("$_b/driver/assigned");
   }
 }

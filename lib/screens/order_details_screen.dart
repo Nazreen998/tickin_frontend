@@ -117,7 +117,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           trailing: Text("₹${total.toStringAsFixed(2)}"),
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
     );

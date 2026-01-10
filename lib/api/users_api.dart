@@ -29,7 +29,7 @@ class UsersApi {
           return {"drivers": res["data"]};
         }
 
-        if (res is Map<String, dynamic> && res.values.any((v) => v is List)) {
+        if (res.values.any((v) => v is List)) {
           // sometimes backend returns { users:[...] }
           final firstList = res.values.firstWhere((v) => v is List, orElse: () => []);
           return {"drivers": firstList};
