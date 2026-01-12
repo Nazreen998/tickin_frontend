@@ -1,3 +1,4 @@
+import 'package:book_yours/screens/driver_orders.dart';
 import 'package:flutter/material.dart';
 
 import 'create_order_screen.dart';
@@ -159,7 +160,12 @@ class ManagerDashboardScreen extends StatelessWidget {
       // ================= DRIVER =================
       case UserRole.driver:
         return [
-          _card(context, Icons.list_alt, "My Orders", () {}),
+          _card(context, Icons.list_alt, "My Orders", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DriverOrdersScreen()),
+            );
+          }),
           _card(context, Icons.how_to_reg, "Attendance", () {}),
         ];
 
