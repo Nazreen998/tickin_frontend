@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype, unused_local_variable
+// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype, unused_local_variable, unused_element, avoid_print
 
 import 'package:flutter/material.dart';
 import '../app_scope.dart';
@@ -81,57 +81,61 @@ class _ManagerAllOrdersScreenState extends State<ManagerAllOrdersScreen> {
     return false;
   }
 
-  /// ✅ Slot booking open
-  Future<void> _openSlotBooking(Map<String, dynamic> o) async {
-    final orderId = _safe(o, ["orderId", "id"]);
-    final amount =
-        _num(o["amount"] ?? o["totalAmount"] ?? o["grandTotal"]).toDouble();
+  /// ✅ IMPORTANT: always returns raw locationId (ex: "1","2","3","4","5")
+String _normalizeRawLocId(Map<String, dynamic> o) {
+  String raw = (o["locationId"] ?? o["mergeKey"] ?? "").toString().trim();
 
-    final distCode =
-        (o["distributorId"] ?? o["distributorCode"] ?? "").toString();
-    final distName = (o["distributorName"] ?? o["agencyName"] ?? "").toString();
-
-    // ✅ normalize locationId/mergeKey mismatch
-    String rawLocationId = (o["locationId"] ?? "").toString().trim();
-    String mergeKey = (o["mergeKey"] ?? "").toString().trim();
-
-    if (rawLocationId.toUpperCase().startsWith("LOC#")) {
-      rawLocationId = rawLocationId.substring(4);
-    }
-
-    if (rawLocationId.isEmpty && mergeKey.toUpperCase().startsWith("LOC#")) {
-      rawLocationId = mergeKey.substring(4);
-    }
-
-    if (mergeKey.isEmpty && rawLocationId.isNotEmpty) {
-      mergeKey = "LOC#${rawLocationId.toUpperCase()}";
-    }
-
-    if (orderId.isEmpty || orderId == "-") {
-      toast("❌ OrderId missing");
-      return;
-    }
-    if (distCode.isEmpty || distName.isEmpty) {
-      toast("❌ Distributor details missing");
-      return;
-    }
-
-    final ok = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SlotBookingScreen(
-          role: "MANAGER",
-          distributorCode: distCode,
-          distributorName: distName,
-          orderId: orderId,
-          amount: amount,
-          locationId: rawLocationId.isEmpty ? null : rawLocationId,
-        ),
-      ),
-    );
-
-    if (ok == true) await _load();
+  // remove "LOC#" prefix if already stored as LOC#...
+  if (raw.toUpperCase().startsWith("LOC#")) {
+    raw = raw.substring(4);
   }
+
+  // sometimes your DB has LOC#LOC#GEO... remove extra LOC#
+  while (raw.toUpperCase().startsWith("LOC#")) {
+    raw = raw.substring(4);
+  }
+
+  return raw.trim();
+}
+  /// ✅ Slot booking open
+ Future<void> _openSlotBooking(Map<String, dynamic> o) async {
+  final orderId = _safe(o, ["orderId", "id"]);
+  final amount = _num(o["amount"] ?? o["totalAmount"] ?? o["grandTotal"]).toDouble();
+
+  final distCode = (o["distributorId"] ?? o["distributorCode"] ?? "").toString();
+  final distName = (o["distributorName"] ?? o["agencyName"] ?? "").toString();
+
+  final rawLoc = _normalizeRawLocId(o);
+
+  print("✅ ORDER OPEN => orderId=$orderId locationId=$rawLoc");
+
+  if (orderId.isEmpty || orderId == "-") {
+    toast("❌ OrderId missing");
+    return;
+  }
+  if (distCode.isEmpty || distName.isEmpty) {
+    toast("❌ Distributor details missing");
+    return;
+  }
+
+  final ok = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => SlotBookingScreen(
+        role: "MANAGER",
+        distributorCode: distCode,
+        distributorName: distName,
+        orderId: orderId,
+        amount: amount,
+
+        // ✅ MUST PASS RAW locationId
+        locationId: rawLoc.isEmpty ? null : rawLoc,
+      ),
+    ),
+  );
+
+  if (ok == true) await _load();
+}
 
   Future<void> _cancelBookedSlot(Map<String, dynamic> o) async {
     final scope = TickinAppScope.of(context);
@@ -149,13 +153,11 @@ class _ManagerAllOrdersScreenState extends State<ManagerAllOrdersScreen> {
         content: Text("Order: $orderId\nCancel slot and rebook again?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("No"),
-          ),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("No")),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Yes Cancel"),
-          ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Yes Cancel")),
         ],
       ),
     );
@@ -185,13 +187,11 @@ class _ManagerAllOrdersScreenState extends State<ManagerAllOrdersScreen> {
         content: Text("Delete $orderId ?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("No"),
-          ),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("No")),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Yes Delete"),
-          ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Yes Delete")),
         ],
       ),
     );
@@ -277,8 +277,6 @@ class _ManagerAllOrdersScreenState extends State<ManagerAllOrdersScreen> {
                                 subtitle: Text(
                                   "Order: $orderId\nStatus: $status\nDate: $createdAt",
                                 ),
-
-                                /// ✅ TRAILING BUTTONS FIXED
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -302,20 +300,21 @@ class _ManagerAllOrdersScreenState extends State<ManagerAllOrdersScreen> {
                                         onPressed: () => _deleteOrder(o),
                                       ),
                                     ] else ...[
-                                      IconButton(
-                                        icon: const Icon(Icons.cancel,
-                                            color: Colors.orange),
-                                        onPressed: () => _cancelBookedSlot(o),
+                                      ElevatedButton(
+                                        onPressed: null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.grey,
+                                        ),
+                                        child: const Text("SLOT"),
                                       ),
                                     ],
                                   ],
                                 ),
-
                                 onTap: () {
                                   if (!slotBooked) {
                                     _openSlotBooking(o);
                                   } else {
-                                    toast("⚠️ Slot already booked. Cancel to rebook.");
+                                    toast("⚠️ Slot already booked. Cannot rebook.");
                                   }
                                 },
                                 onLongPress: () {

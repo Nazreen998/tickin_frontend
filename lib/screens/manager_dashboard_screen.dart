@@ -1,11 +1,9 @@
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
 
 import 'create_order_screen.dart';
 import 'slots/slot_booking_screen.dart';
 
-// ✅ NEW import: slot-confirmed flow list screen
+// ✅ FIX: import slot confirmed orders list screen
 import 'manager_orders_with_slot_screen.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
@@ -14,7 +12,7 @@ class ManagerDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Manager Dashboard")),
+      appBar: AppBar(title: const Text("VAGR Dashboard")),
       body: GridView.count(
         padding: const EdgeInsets.all(20),
         crossAxisCount: 2,
@@ -44,7 +42,6 @@ class ManagerDashboardScreen extends StatelessWidget {
             Icons.account_tree,
             "Orders Flow",
             () {
-              // ✅ FIX: Open Slot Confirmed Flow List (NOT All Orders)
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -61,7 +58,7 @@ class ManagerDashboardScreen extends StatelessWidget {
             () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text("Tracking open from Order Details screen"),
+                  content: Text("Tracking open from Orders Flow screen"),
                 ),
               );
             },

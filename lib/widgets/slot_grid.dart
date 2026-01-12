@@ -152,8 +152,12 @@ class _SlotTile extends StatelessWidget {
     return c > 0 ? "$c Orders" : "";
   }
 
-  String _fullDistributorName() {
-    return (slot.distributorName ?? "").trim();
+  /// ✅ FULL SLOT distributor split lines (A + B)
+  List<String> _fullDistributorLines() {
+    final raw = (slot.distributorName ?? "").trim();
+    if (raw.isEmpty) return [];
+    // backend sends "A + B"
+    return raw.split(" + ").map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
   /// ✅ Participants list safe conversion
@@ -177,6 +181,7 @@ class _SlotTile extends StatelessWidget {
     final mergeCount = _mergeCountText();
 
     final participants = _participantsList();
+    final fullLines = _fullDistributorLines();
 
     return InkWell(
       onTap: onTap,
@@ -243,8 +248,7 @@ class _SlotTile extends StatelessWidget {
               if (slot.isMerge) ...[
                 ...(() {
                   final list = participants.where((x) {
-                    final dn =
-                        (x["distributorName"] ?? "").toString().trim();
+                    final dn = (x["distributorName"] ?? "").toString().trim();
                     return dn.isNotEmpty;
                   }).toList();
 
@@ -262,11 +266,9 @@ class _SlotTile extends StatelessWidget {
                   }
 
                   return list.take(2).map((p) {
-                    final dn =
-                        (p["distributorName"] ?? "-").toString().trim();
+                    final dn = (p["distributorName"] ?? "-").toString().trim();
                     final amt = p["amount"];
-                    final amtNum =
-                        (amt is num) ? amt : num.tryParse("$amt") ?? 0;
+                    final amtNum = (amt is num) ? amt : num.tryParse("$amt") ?? 0;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 3),
@@ -294,18 +296,34 @@ class _SlotTile extends StatelessWidget {
                 ),
               ]
 
-              /// ✅ FULL SLOT: show distributor + amount
+              /// ✅ FULL SLOT: show distributor lines + amount
               else ...[
-                Text(
-                  _fullDistributorName().isEmpty ? "-" : _fullDistributorName(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                if (fullLines.isEmpty)
+                  const Text(
+                    "-",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                else
+                  ...fullLines.take(2).map(
+                        (n) => Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            n,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+
                 const SizedBox(height: 4),
                 Text(
                   _amountText(),

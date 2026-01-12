@@ -116,4 +116,9 @@ class OrdersApi {
 
     return created;
   }
+
+    /// 🚚 Driver - Assigned orders
+  Future<Map<String, dynamic>> getDriverAssignedOrders() {
+    return client.get("$_b/driver/assigned");
+  }
 }

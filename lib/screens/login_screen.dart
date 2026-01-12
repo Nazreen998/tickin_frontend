@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-
+import 'package:book_yours/screens/driver_dashboard_screen.dart';
 import '../app_scope.dart';
 import 'manager_dashboard_screen.dart';
 import 'slots/slot_booking_screen.dart';
@@ -64,13 +64,19 @@ class _LoginScreenState extends State<LoginScreen> {
               .toString();
       final locId = (userMap["locationId"] ?? "LOC1").toString();
 
-      if (role == "MANAGER" || role == "MASTER") {
+      if (role == "MANAGER" || role == "MASTER" || role == "SALES OFFICER") {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const ManagerDashboardScreen()),
         );
       } else {
       }
+      if (role == "DRIVER" || role == "LOADMAN") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
+        );
+      } else {}
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)

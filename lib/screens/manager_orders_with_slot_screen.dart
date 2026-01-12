@@ -1,12 +1,13 @@
-// ignore_for_file: deprecated_member_use, unused_local_variable, unused_import
+// ignore_for_file: deprecated_member_use, unused_import
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../app_scope.dart';
-import 'manager_orders_flow_screen.dart';
 import '../api/orders_flow_api.dart';
+
+import 'manager_orders_flow_screen.dart';
+import 'order_unified_tracking_screen.dart';
 
 class ManagerOrdersWithSlotScreen extends StatefulWidget {
   const ManagerOrdersWithSlotScreen({super.key});
@@ -16,33 +17,29 @@ class ManagerOrdersWithSlotScreen extends StatefulWidget {
       _ManagerOrdersWithSlotScreenState();
 }
 
-class _ManagerOrdersWithSlotScreenState
-    extends State<ManagerOrdersWithSlotScreen> {
+class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScreen> {
   bool loading = false;
-  bool _loadedOnce = false;
+  bool loadedOnce = false;
 
   List<Map<String, dynamic>> flows = [];
-
-  // ✅ Default today
   String selectedDate = DateFormat("yyyy-MM-dd").format(DateTime.now());
+
+  void toast(String msg) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    });
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_loadedOnce) {
-      _loadedOnce = true;
+    if (!loadedOnce) {
+      loadedOnce = true;
       _load();
     }
   }
 
-void toast(String msg) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
-  });
-}
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -51,11 +48,13 @@ void toast(String msg) {
       firstDate: now.subtract(const Duration(days: 30)),
       lastDate: now.add(const Duration(days: 30)),
     );
+
     if (picked == null) return;
 
     setState(() {
       selectedDate = DateFormat("yyyy-MM-dd").format(picked);
     });
+
     await _load();
   }
 
@@ -63,22 +62,23 @@ void toast(String msg) {
     setState(() => loading = true);
     try {
       final scope = TickinAppScope.of(context);
-      final flowApi = OrdersFlowApi(scope.httpClient);
+      final api = OrdersFlowApi(scope.httpClient);
 
-      final res = await flowApi.slotConfirmedOrders(date: selectedDate);
-
+      final res = await api.slotConfirmedOrders(date: selectedDate);
       final list = (res["orders"] ?? res["data"] ?? []) as List;
 
-      setState(() {
-        flows = list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      final parsed = list
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
 
-        // Sort by slotTime
-        flows.sort((a, b) {
-          final atA = (a["slotTime"] ?? "").toString();
-          final atB = (b["slotTime"] ?? "").toString();
-          return atA.compareTo(atB);
-        });
+      parsed.sort((a, b) {
+        final atA = (a["slotTime"] ?? "").toString();
+        final atB = (b["slotTime"] ?? "").toString();
+        return atA.compareTo(atB);
       });
+
+      setState(() => flows = parsed);
     } catch (e) {
       toast("❌ Load failed: $e");
     } finally {
@@ -86,7 +86,7 @@ void toast(String msg) {
     }
   }
 
-  String _safe(Map o, List<String> keys) {
+  String safe(Map o, List<String> keys) {
     for (final k in keys) {
       final v = o[k];
       if (v != null && v.toString().trim().isNotEmpty) return v.toString();
@@ -94,20 +94,34 @@ void toast(String msg) {
     return "-";
   }
 
-  num _num(dynamic v) {
+  num numSafe(dynamic v) {
     if (v == null) return 0;
     if (v is num) return v;
     return num.tryParse(v.toString()) ?? 0;
+  }
+
+  void openTracking(String orderId) {
+    if (orderId.isEmpty || orderId == "-") {
+      toast("OrderId missing");
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderUnifiedTrackingScreen(orderId: orderId),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Manager Slot Flows"),
+        title: const Text("Slot Confirmed Orders"),
         actions: [
-          IconButton(onPressed: _pickDate, icon: const Icon(Icons.calendar_month)),
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+          IconButton(icon: const Icon(Icons.calendar_month), onPressed: _pickDate),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
       body: loading
@@ -120,37 +134,57 @@ void toast(String msg) {
                   itemBuilder: (_, i) {
                     final f = flows[i];
 
-                    final flowKey = _safe(f, ["flowKey"]);
-                    final slotTime = _safe(f, ["slotTime"]);
-                    final vType = _safe(f, ["vehicleType"]);
-                    final status = _safe(f, ["status"]);
+                    final flowKey = safe(f, ["flowKey"]);
+                    final slotTime = safe(f, ["slotTime"]);
+                    final status = safe(f, ["status"]);
+                    final vType = safe(f, ["vehicleType"]);
 
                     final orderIds = (f["orderIds"] ?? []) as List;
                     final distributors = (f["distributors"] ?? []) as List;
 
-                    final totalQty = _num(f["totalQty"]);
-                    final grand = _num(f["grandAmount"]);
+                    final totalQty = numSafe(f["totalQty"]);
+                    final grand = numSafe(f["grandAmount"] ?? f["totalAmount"] ?? f["amount"]);
 
-                    final mainDist = distributors.isNotEmpty
-                        ? (distributors.first is Map
-                            ? (distributors.first["distributorName"] ?? "-").toString()
-                            : "-")
-                        : "-";
+                    final firstOrderId =
+                        orderIds.isNotEmpty ? orderIds.first.toString() : "-";
 
-                    // ✅ pick first orderId for display only
-                    final firstOrderId = orderIds.isNotEmpty ? orderIds.first.toString() : "-";
+                    final distNames = <String>[];
+                    for (final d in distributors) {
+                      if (d is Map) {
+                        final name = (d["distributorName"] ?? d["name"] ?? "").toString();
+                        if (name.trim().isNotEmpty) distNames.add(name);
+                      } else if (d != null) {
+                        final name = d.toString();
+                        if (name.trim().isNotEmpty) distNames.add(name);
+                      }
+                    }
 
+                   final mainDist = distNames.isNotEmpty ? distNames.asMap().entries.map((e) => "D${e.key + 1}: ${e.value}").join(" | ")
+    : "-";
                     return Card(
                       elevation: 2,
                       child: ListTile(
                         title: Text(
-                          "Slot: $slotTime  |  Orders: ${orderIds.length}",
+                          "Slot: $slotTime | Orders: ${orderIds.length}",
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          "Distributor: $mainDist\nVehicleType: $vType | Qty: $totalQty | Amount: ₹$grand\nStatus: $status\nFlowKey: $flowKey",
+                          "Distributor: $mainDist\n"
+                          "VehicleType: $vType | Qty: $totalQty | Amount: ₹$grand\n"
+                          "Status: $status\n"
+                          "FlowKey: $flowKey",
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        trailing: Wrap(
+                          spacing: 8,
+                          children: [
+                            IconButton(
+                              tooltip: "Tracking",
+                              icon: const Icon(Icons.track_changes),
+                              onPressed: () => openTracking(firstOrderId),
+                            ),
+                            const Icon(Icons.arrow_forward_ios, size: 16),
+                          ],
+                        ),
                         onTap: () {
                           if (flowKey == "-" || flowKey.isEmpty) {
                             toast("FlowKey missing");
@@ -162,8 +196,12 @@ void toast(String msg) {
                             MaterialPageRoute(
                               builder: (_) => ManagerOrderFlowScreen(
                                 flowKey: flowKey,
-                                // display-only id (flow fetch will use flowKey)
                                 orderId: firstOrderId,
+                                slotTime: slotTime,
+                                distributors: distNames,
+                                totalAmount: grand,
+                                totalQty: totalQty,
+                                statusFromSlot: status,
                               ),
                             ),
                           );

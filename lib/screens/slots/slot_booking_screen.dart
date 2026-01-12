@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unused_element, curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -9,15 +9,14 @@ import '../../widgets/slot_grid.dart';
 import '../../widgets/slot_rules_card.dart';
 
 class SlotBookingScreen extends StatefulWidget {
-  final String role; // SALES OFFICER / SALESMAN / DISTRIBUTOR / MANAGER / MASTER
+  final String role;
   final String distributorCode;
   final String distributorName;
 
-  // ✅ Only needed when booking from orders
   final String? orderId;
   final double? amount;
 
-  // ✅ NEW: for strict auto merge
+  /// ✅ IMPORTANT: locationId 1..5 for auto merge
   final String? locationId;
 
   const SlotBookingScreen({
@@ -45,19 +44,18 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
   SlotRules rules = SlotRules(
     maxAmount: 80000,
     lastSlotEnabled: false,
-    lastSlotOpenAfter: "17:00",
+    lastSlotOpenAfter: "16:30",
   );
 
   String companyCode = "";
 
-  bool get isManager => widget.role.toUpperCase() == "MANAGER";
-  bool get isMaster => widget.role.toUpperCase() == "MASTER";
+  bool get isManager =>
+      widget.role.toUpperCase() == "MANAGER" || widget.role.toUpperCase() == "MASTER";
 
-  bool get isSalesman =>
+  bool get isSales =>
       widget.role.toUpperCase() == "SALESMAN" ||
-      widget.role.toUpperCase() == "SALES OFFICER";
-
-  bool get canBook => !isMaster;
+      widget.role.toUpperCase() == "SALES OFFICER" ||
+      widget.role.toUpperCase() == "DISTRIBUTOR";
 
   @override
   void didChangeDependencies() {
@@ -82,9 +80,7 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
 
   void toast(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(m)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
   Future<void> _init() async {
@@ -102,7 +98,6 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
         companyCode = cid.contains("#") ? cid.split("#").last : cid;
       }
     } catch (_) {}
-
     companyCode = companyCode.isEmpty ? "VAGR_IT" : companyCode;
   }
 
@@ -115,26 +110,27 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
 
   List<SlotItem> get sessionFullSlots {
     final time = _timeFromSession(selectedSession);
-
     return allSlots.where((s) {
       if (!s.isFull) return false;
-      if (s.time != time) return false;
+      if (SlotItem.normalizeTime(s.time) != time) return false;
       if (!isManager && s.normalizedStatus == "DISABLED") return false;
       return true;
-    }).toList();
+    }).toList()
+      ..sort((a, b) => a.slotIdNum.compareTo(b.slotIdNum));
   }
 
   List<SlotItem> get sessionMergeSlots {
     final time = _timeFromSession(selectedSession);
-
     return allSlots.where((s) {
       if (!s.isMerge) return false;
-      if (s.time != time) return false;
+      if (SlotItem.normalizeTime(s.time) != time) return false;
       if ((s.tripStatus ?? "").toUpperCase() == "FULL") return false;
+      if ((s.bookingCount ?? 0) <= 0 && (s.totalAmount ?? 0) <= 0) return false;
       return true;
     }).toList();
   }
 
+  /// ✅ VERY IMPORTANT FIX: flatten nested `slots: [fullSlots, mergeSlots]` :contentReference[oaicite:10]{index=10}
   Future<void> _loadGrid() async {
     setState(() => loading = true);
 
@@ -147,16 +143,23 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
         date: selectedDate,
       );
 
-      final rawSlots = (res["slots"] ?? []) as List;
+      final rawSlots = (res["slots"] ?? []) as List; // [[],[]]
       final rawRules = (res["rules"] ?? {}) as Map;
 
-      final parsedSlots = rawSlots
-          .whereType<Map>()
-          .map((e) => SlotItem.fromMap(e.cast<String, dynamic>()))
-          .toList();
+      final List<Map<String, dynamic>> flattened = [];
+      for (final block in rawSlots) {
+        if (block is List) {
+          for (final item in block) {
+            if (item is Map) flattened.add(item.cast<String, dynamic>());
+          }
+        } else if (block is Map) {
+          flattened.add(block.cast<String, dynamic>());
+        }
+      }
 
+      final parsed = flattened.map((e) => SlotItem.fromMap(e)).toList();
       final unique = <String, SlotItem>{};
-      for (final s in parsedSlots) {
+      for (final s in parsed) {
         unique[s.sk] = s;
       }
 
@@ -171,14 +174,12 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
     }
   }
 
-  /* =====================================================
-      ✅ BOOK SLOT
-  ====================================================== */
+  /// ✅ booking (backend decides FULL / HALF based on amount threshold) :contentReference[oaicite:11]{index=11}
   Future<void> _bookOrderSlot(SlotItem slot) async {
     if (booking) return;
 
     if (widget.orderId == null || widget.amount == null) {
-      toast("❌ OrderId / Amount missing. Booking must start from Orders screen.");
+      toast("❌ OrderId / Amount missing");
       return;
     }
 
@@ -196,12 +197,11 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
         distributorName: widget.distributorName,
         amount: widget.amount!,
         orderId: widget.orderId!,
-        locationId: widget.locationId, // ✅ FIXED
+        locationId: widget.locationId, // ✅ locationId 1..5 for auto merge
       );
 
-      toast("✅ Booking success (backend decides FULL/HALF)");
+      toast("✅ Booking success");
       await _loadGrid();
-
       if (!isManager && mounted) Navigator.pop(context, true);
     } catch (e) {
       toast("❌ Booking failed: $e");
@@ -210,15 +210,13 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
     }
   }
 
-  /* =====================================================
-      ✅ FULL SLOT TAP HANDLER
-  ====================================================== */
+  /// ✅ FULL SLOT tap
   Future<void> _onFullSlotTap(SlotItem slot) async {
-    if (!canBook) return;
     if (booking) return;
 
     final st = slot.normalizedStatus;
 
+    // MANAGER -> disable/enable/cancel/book
     if (isManager) {
       if (st == "DISABLED") {
         await _enableSlot(slot);
@@ -256,37 +254,132 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
 
       if (act == "disable") await _disableSlot(slot);
       if (act == "book") await _bookOrderSlot(slot);
-
       return;
     }
 
-    if (isSalesman) {
-      if (slot.isBooked) return;
-
+    // SALES/DISTRIBUTOR -> only book if available
+    if (!slot.isBooked && isSales) {
       final ok = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text("Confirm Slot Booking"),
-          content: Text(
-            "Order: ${widget.orderId}\nSlot: ${slot.slotIdLabel} (${slot.sessionLabel})\nProceed booking?",
-          ),
+          content: Text("Order: ${widget.orderId}\nSlot: ${slot.slotIdLabel} (${slot.sessionLabel})\nProceed booking?"),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
             ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Book")),
           ],
         ),
       );
-
       if (ok == true) await _bookOrderSlot(slot);
       return;
     }
-
-    toast("⚠️ Booking not allowed for this role");
   }
 
-  /* =====================================================
-      ✅ MANAGER: ENABLE / DISABLE / CANCEL FULL
-  ====================================================== */
+  /// ✅ MERGE tile tap (manager confirm/manual merge)
+  Future<void> _onMergeSlotTap(SlotItem mergeSlot) async {
+    if (!isManager) return;
+
+    final ts = (mergeSlot.tripStatus ?? "").toUpperCase();
+    final canConfirm = ts.contains("READY"); // READY_FOR_CONFIRM
+
+    final act = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Merge Slot Action"),
+        content: Text("MergeKey: ${mergeSlot.mergeKey}\nTotal: ₹${mergeSlot.totalAmount ?? 0}\nStatus: ${mergeSlot.tripStatus}"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, "manual"), child: const Text("Manual Merge")),
+          if (canConfirm)
+            ElevatedButton(onPressed: () => Navigator.pop(context, "confirm"), child: const Text("Confirm")),
+          TextButton(onPressed: () => Navigator.pop(context, null), child: const Text("Close")),
+        ],
+      ),
+    );
+
+    if (act == "confirm") {
+      await _confirmMerge(mergeSlot);
+    } else if (act == "manual") {
+      await _manualMergeFlow(mergeSlot);
+    }
+  }
+
+  Future<String> _managerId() async {
+    try {
+      final scope = TickinAppScope.of(context);
+      final userJson = await scope.tokenStore.getUserJson();
+      if (userJson != null && userJson.isNotEmpty) {
+        final u = jsonDecode(userJson);
+        return (u["userId"] ?? u["id"] ?? u["sk"] ?? "MANAGER").toString();
+      }
+    } catch (_) {}
+    return "MANAGER";
+  }
+
+  Future<void> _confirmMerge(SlotItem mergeSlot) async {
+    try {
+      final scope = TickinAppScope.of(context);
+      final managerId = await _managerId();
+
+      await scope.slotsApi.managerConfirmMerge({
+        "companyCode": companyCode,
+        "date": selectedDate,
+        "time": mergeSlot.time,
+        "mergeKey": mergeSlot.mergeKey,
+        "managerId": managerId,
+      });
+
+      toast("✅ Merge Confirmed → FULL slot booked");
+      await _loadGrid();
+    } catch (e) {
+      toast("❌ Confirm merge failed: $e");
+    }
+  }
+
+  /// ✅ Manual merge dropdown -> Eligible bookings (time wise)
+  Future<void> _manualMergeFlow(SlotItem mergeSlot) async {
+    try {
+      final scope = TickinAppScope.of(context);
+      final res = await scope.httpClient.get(
+        "/api/slots/eligible-half-bookings",
+        query: {"date": selectedDate, "time": mergeSlot.time},
+      );
+
+      final listRaw = (res["bookings"] ?? []) as List;
+      final allBookings = listRaw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+
+      if (allBookings.isEmpty) {
+        toast("No waiting HALF bookings for this time");
+        return;
+      }
+
+      final selected = await showDialog<List<String>>(
+        context: context,
+        builder: (_) => _MultiSelectOrdersDialog(bookings: allBookings),
+      );
+
+      if (selected == null || selected.length < 2) {
+        toast("Select at least 2 orders");
+        return;
+      }
+
+      final managerId = await _managerId();
+
+      await scope.slotsApi.managerMergeOrdersManual({
+        "companyCode": companyCode,
+        "date": selectedDate,
+        "time": mergeSlot.time,
+        "orderIds": selected,
+        "targetMergeKey": mergeSlot.mergeKey,
+        "managerId": managerId,
+      });
+
+      toast("✅ Manual merge done");
+      await _loadGrid();
+    } catch (e) {
+      toast("❌ Manual merge failed: $e");
+    }
+  }
+
   Future<void> _disableSlot(SlotItem slot) async {
     try {
       final scope = TickinAppScope.of(context);
@@ -336,8 +429,6 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
         "time": slot.time,
         "pos": slot.pos,
         "userId": slot.userId,
-
-        // ✅ IMPORTANT: send orderId if exists (lock delete)
         if (slot.orderId != null) "orderId": slot.orderId,
       });
 
@@ -347,96 +438,6 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
       toast("❌ Cancel failed: $e");
     }
   }
-
-  /* =====================================================
-      ✅ MANAGER: MERGE CONFIRM / MANUAL MERGE
-  ====================================================== */
-
-  Future<String> _managerId() async {
-    try {
-      final scope = TickinAppScope.of(context);
-      final userJson = await scope.tokenStore.getUserJson();
-      if (userJson != null && userJson.isNotEmpty) {
-        final u = jsonDecode(userJson);
-        return (u["userId"] ?? u["id"] ?? u["sk"] ?? "MANAGER").toString();
-      }
-    } catch (_) {}
-    return "MANAGER";
-  }
-
-  Future<void> _confirmMerge(SlotItem mergeSlot) async {
-    try {
-      final scope = TickinAppScope.of(context);
-      final managerId = await _managerId();
-
-      await scope.slotsApi.managerConfirmMerge({
-        "companyCode": companyCode,
-        "date": selectedDate,
-        "time": mergeSlot.time,
-        "mergeKey": mergeSlot.mergeKey,
-        "managerId": managerId,
-      });
-
-      toast("✅ Merge Confirmed → FULL slot booked");
-      await _loadGrid();
-    } catch (e) {
-      toast("❌ Confirm merge failed: $e");
-    }
-  }
-
-  Future<void> _manualMergeFlow(SlotItem mergeSlot) async {
-    try {
-      final scope = TickinAppScope.of(context);
-      final managerId = await _managerId();
-
-      final eligible = await scope.httpClient.get(
-        "/api/slots/eligible-half-bookings",
-        query: {
-          "date": selectedDate,
-          "time": mergeSlot.time,
-        },
-      );
-
-      final listRaw = (eligible["bookings"] ?? eligible["items"] ?? []) as List;
-      final bookings = listRaw
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-
-      if (bookings.isEmpty) {
-        toast("No eligible HALF bookings");
-        return;
-      }
-
-      final selected = await showDialog<List<String>>(
-        context: context,
-        builder: (_) => _MultiSelectOrdersDialog(bookings: bookings),
-      );
-
-      if (selected == null || selected.length < 2) {
-        toast("Select at least 2 orders");
-        return;
-      }
-
-      await scope.slotsApi.managerMergeOrdersManual({
-        "companyCode": companyCode,
-        "date": selectedDate,
-        "time": mergeSlot.time,
-        "orderIds": selected,
-        "targetMergeKey": mergeSlot.mergeKey,
-        "managerId": managerId,
-      });
-
-      toast("✅ Manual merge done");
-      await _loadGrid();
-    } catch (e) {
-      toast("❌ Manual merge failed: $e");
-    }
-  }
-
-  /* =====================================================
-      ✅ RULES ACTIONS
-  ====================================================== */
 
   Future<void> _editThreshold() async {
     final ctrl = TextEditingController(text: rules.maxAmount.toStringAsFixed(0));
@@ -491,10 +492,6 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
     }
   }
 
-  /* =====================================================
-      ✅ UI Widgets
-  ====================================================== */
-
   Widget _sessionTabs() {
     final sessions = ["Morning", "Afternoon", "Evening", "Night"];
     return Padding(
@@ -505,24 +502,14 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: InkWell(
-                onTap: () => setState(() => selectedSession = s),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isSel ? Colors.blue.shade700 : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Text(
-                      s,
-                      style: TextStyle(
-                        color: isSel ? Colors.white : Colors.black87,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isSel ? Colors.blue : Colors.white,
+                  foregroundColor: isSel ? Colors.white : Colors.black87,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
+                onPressed: () => setState(() => selectedSession = s),
+                child: Text(s),
               ),
             ),
           );
@@ -531,135 +518,84 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
     );
   }
 
-  Widget _mergeBottomGrid() {
-    final merge = sessionMergeSlots;
-
-    if (merge.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(12),
-        child: Text("No merge slots", style: TextStyle(color: Colors.white70)),
-      );
-    }
-
-    return SizedBox(
-      height: 260,
-      child: SlotGrid(
-        slots: merge,
-        role: widget.role,
-        myDistributorCode: widget.distributorCode,
-        onSlotTap: (s) async {
-          if (!isManager) return;
-
-          final ts = (s.tripStatus ?? "PARTIAL").toUpperCase();
-          final ready = ts.contains("READY");
-
-          final act = await showDialog<String>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text("Merge Action"),
-              content: Text(
-                "Merge: ${s.mergeKey}\nTrip: $ts\nTotal: ₹${(s.totalAmount ?? 0).toStringAsFixed(0)}",
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, "manual"),
-                  child: const Text("Manual Merge"),
-                ),
-                ElevatedButton(
-                  onPressed: ready ? () => Navigator.pop(context, "confirm") : null,
-                  child: const Text("Confirm Merge"),
-                ),
-              ],
-            ),
-          );
-
-          if (act == "manual") await _manualMergeFlow(s);
-          if (act == "confirm") {
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: const Text("Confirm Merge?"),
-                content: Text("Confirm merge: ${s.mergeKey}?"),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("No")),
-                  ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Yes Confirm")),
-                ],
-              ),
-            );
-
-            if (ok == true) await _confirmMerge(s);
-          }
-        },
-      ),
+  Widget _datePicker() {
+    return DropdownButton<String>(
+      value: selectedDate,
+      dropdownColor: Colors.black87,
+      items: allowedDates()
+          .map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(color: Colors.white))))
+          .toList(),
+      onChanged: (v) async {
+        if (v == null) return;
+        setState(() => selectedDate = v);
+        await _loadGrid();
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final full = sessionFullSlots;
+    final merge = sessionMergeSlots;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06121F),
+      backgroundColor: const Color(0xFF061522),
       appBar: AppBar(
-        title: Text(isManager ? "Manager Slot Dashboard" : "Slot Booking"),
+        backgroundColor: const Color(0xFF061522),
+        title: const Text("Manager Slot Dashboard"),
         actions: [
-          DropdownButton<String>(
-            value: selectedDate,
-            dropdownColor: Colors.black,
-            underline: const SizedBox(),
-            items: allowedDates()
-                .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                .toList(),
-            onChanged: (v) async {
-              if (v == null) return;
-              setState(() => selectedDate = v);
-              await _loadGrid();
-            },
+          _datePicker(),
+          const SizedBox(width: 10),
+          IconButton(
+            onPressed: _loadGrid,
+            icon: const Icon(Icons.refresh),
           ),
-          IconButton(onPressed: _loadGrid, icon: const Icon(Icons.refresh)),
         ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : booking
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  children: [
-                    SlotRulesCard(
-                      rules: rules,
-                      isManager: isManager,
-                      onEditThreshold: _editThreshold,
-                      onToggleNightSlot: _toggleNightSlot,
-                    ),
-                    _sessionTabs(),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Text(
-                        "FULL Slots ($selectedSession)",
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                    ),
-                    SizedBox(
-                      height: 260,
-                      child: SlotGrid(
-                        slots: full,
-                        role: widget.role,
-                        myDistributorCode: widget.distributorCode,
-                        onSlotTap: _onFullSlotTap,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Text(
-                        "HALF Merge Slots ($selectedSession)",
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                    ),
-                    _mergeBottomGrid(),
-                    const SizedBox(height: 16),
-                  ],
+          : Column(
+              children: [
+                SlotRulesCard(
+                  rules: rules,
+                  isManager: isManager,
+                  onEditThreshold: _editThreshold,
+                  onToggleNightSlot: _toggleNightSlot,
                 ),
+                _sessionTabs(),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    children: [
+                      Text("FULL Slots (${selectedSession})", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 360,
+                        child: SlotGrid(
+                          slots: full,
+                          role: widget.role,
+                          myDistributorCode: widget.distributorCode,
+                          onSlotTap: _onFullSlotTap,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text("HALF Merge Slots (${selectedSession})", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 260,
+                        child: SlotGrid(
+                          slots: merge,
+                          role: widget.role,
+                          myDistributorCode: widget.distributorCode,
+                          onSlotTap: _onMergeSlotTap,
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -673,34 +609,37 @@ class _MultiSelectOrdersDialog extends StatefulWidget {
 }
 
 class _MultiSelectOrdersDialogState extends State<_MultiSelectOrdersDialog> {
-  final Set<String> selected = {};
+  final selected = <String>{};
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text("Select 2+ HALF bookings"),
+      title: const Text("Select Orders (2+)"),
       content: SizedBox(
         width: double.maxFinite,
-        height: 320,
+        height: 350,
         child: ListView.builder(
           itemCount: widget.bookings.length,
           itemBuilder: (_, i) {
             final b = widget.bookings[i];
             final oid = (b["orderId"] ?? "").toString();
-            final dn = (b["distributorName"] ?? "").toString();
-            final amt = (b["amount"] ?? 0).toString();
-            final checked = selected.contains(oid);
+            final dn = (b["distributorName"] ?? "-").toString();
+            final amt = (b["amount"] ?? 0);
+            final numAmt = (amt is num) ? amt : num.tryParse("$amt") ?? 0;
 
             return CheckboxListTile(
-              value: checked,
-              title: Text(dn.isEmpty ? "-" : dn),
-              subtitle: Text("Order: $oid | ₹$amt"),
+              value: selected.contains(oid),
               onChanged: (v) {
                 setState(() {
-                  if (v == true) selected.add(oid);
-                  else selected.remove(oid);
+                  if (v == true) {
+                    selected.add(oid);
+                  } else {
+                    selected.remove(oid);
+                  }
                 });
               },
+              title: Text("$dn | ₹${numAmt.toStringAsFixed(0)}"),
+              subtitle: Text("Order: $oid"),
             );
           },
         ),

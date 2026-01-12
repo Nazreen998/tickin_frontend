@@ -8,7 +8,7 @@ class TimelineApi {
   String get _b => ApiConfig.timeline;
 
   /* =========================
-     GET TIMELINE
+     GET TIMELINE (RAW+NEAT)
      GET /timeline/:orderId
   ========================= */
   Future<Map<String, dynamic>> getTimeline(String orderId) {
@@ -16,9 +16,15 @@ class TimelineApi {
   }
 
   /* =========================
+     GET TIMELINE (NEAT ONLY)
+     GET /timeline/:orderId/neat
+  ========================= */
+  Future<Map<String, dynamic>> getTimelineNeat(String orderId) {
+    return client.get("$_b/$orderId/neat");
+  }
+
+  /* =========================
      LOADING START
-     POST /timeline/loading-start
-     Body: { orderId }
   ========================= */
   Future<Map<String, dynamic>> loadingStart(String orderId) {
     return client.post("$_b/loading-start", body: {"orderId": orderId});
@@ -26,8 +32,6 @@ class TimelineApi {
 
   /* =========================
      LOADING ITEM
-     POST /timeline/loading-item
-     Body: { orderId, productId, qty }
   ========================= */
   Future<Map<String, dynamic>> loadingItem({
     required String orderId,
@@ -48,8 +52,6 @@ class TimelineApi {
 
   /* =========================
      VEHICLE SELECTED
-     POST /timeline/vehicle-selected
-     Body: { orderId, vehicleNo }
   ========================= */
   Future<Map<String, dynamic>> vehicleSelected({
     required String orderId,
@@ -63,8 +65,6 @@ class TimelineApi {
 
   /* =========================
      LOADING END
-     POST /timeline/loading-end
-     Body: { orderId }
   ========================= */
   Future<Map<String, dynamic>> loadingEnd(String orderId) {
     return client.post("$_b/loading-end", body: {"orderId": orderId});
@@ -72,8 +72,6 @@ class TimelineApi {
 
   /* =========================
      ASSIGN DRIVER
-     POST /timeline/assign-driver
-     Body: { orderId, driverId, vehicleNo }
   ========================= */
   Future<Map<String, dynamic>> assignDriver({
     required String orderId,
@@ -92,8 +90,7 @@ class TimelineApi {
 
   /* =========================
      DRIVER STARTED
-     POST /timeline/driver-started
-     Body: { orderId }
+     (இந்த endpoint backend-ல இல்லைனா remove பண்ணிக்கலாம்)
   ========================= */
   Future<Map<String, dynamic>> driverStarted(String orderId) {
     return client.post("$_b/driver-started", body: {"orderId": orderId});
@@ -101,9 +98,6 @@ class TimelineApi {
 
   /* =========================
      ARRIVED
-     POST /timeline/arrived
-     Body: { orderId, stage, distributorCode? }
-     stage: D1 / D2 / WAREHOUSE
   ========================= */
   Future<Map<String, dynamic>> arrived({
     required String orderId,
@@ -122,8 +116,6 @@ class TimelineApi {
 
   /* =========================
      UNLOAD START
-     POST /timeline/unload-start
-     Body: { orderId, stage, distributorCode? }
   ========================= */
   Future<Map<String, dynamic>> unloadStart({
     required String orderId,
@@ -142,8 +134,6 @@ class TimelineApi {
 
   /* =========================
      UNLOAD END
-     POST /timeline/unload-end
-     Body: { orderId, stage, distributorCode? }
   ========================= */
   Future<Map<String, dynamic>> unloadEnd({
     required String orderId,

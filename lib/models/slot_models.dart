@@ -83,6 +83,7 @@ class SlotItem {
     this.bookingCount,
   });
 
+  /// ✅ FIX: normalizeTime MUST remove seconds too
   static String normalizeTime(String t) {
     final x = t.trim();
     if (!x.contains(":")) return x;
@@ -90,6 +91,8 @@ class SlotItem {
     final parts = x.split(":");
     final hh = parts[0].padLeft(2, "0");
     final mm = (parts.length > 1 ? parts[1] : "00").padLeft(2, "0");
+
+    // ✅ ignore seconds if present (12:30:00 -> 12:30)
     return "$hh:$mm";
   }
 
@@ -114,6 +117,7 @@ class SlotItem {
     final rawTime = (m["time"] ?? m["slotTime"] ?? m["slot_time"])?.toString() ?? "";
     var parsedTime = normalizeTime(rawTime);
 
+    // ✅ MERGE SLOT time fallback
     if ((parsedTime.isEmpty || parsedTime == "00:00") && sk.startsWith("MERGE_SLOT#")) {
       try {
         final parts = sk.split("#");
@@ -123,7 +127,7 @@ class SlotItem {
 
     final rawStatus = (m["status"] ?? "AVAILABLE").toString();
 
-    // ✅ participants list safe parse
+    // ✅ participants safe parse
     final rawP = m["participants"];
     final participants = <Map<String, dynamic>>[];
     if (rawP is List) {
@@ -140,11 +144,15 @@ class SlotItem {
     if (m["amount"] is num) amount = (m["amount"] as num).toDouble();
     else amount = double.tryParse("${m["amount"]}");
 
+    // ✅ FIX: vehicleType safe normalize
+    final vt = (m["vehicleType"] ?? "FULL").toString().toUpperCase().trim();
+    final finalVehicleType = (vt == "HALF") ? "HALF" : "FULL";
+
     return SlotItem(
       pk: pk,
       sk: sk,
       time: parsedTime,
-      vehicleType: (m["vehicleType"] ?? "FULL").toString(),
+      vehicleType: finalVehicleType,
       pos: m["pos"]?.toString(),
       status: rawStatus,
       orderId: m["orderId"]?.toString(),
@@ -184,8 +192,10 @@ class SlotItem {
   bool get isBooked => normalizedStatus == "BOOKED";
   bool get isAvailable => normalizedStatus == "AVAILABLE";
 
+  /// ✅ FIX: sessionLabel now handles seconds and unexpected formats
   String get sessionLabel {
-    final t = time.trim();
+    final t = normalizeTime(time.trim());
+
     if (t == "09:00") return "Morning";
     if (t == "12:30") return "Afternoon";
     if (t == "16:00") return "Evening";
@@ -194,7 +204,7 @@ class SlotItem {
   }
 
   int get slotIdNum {
-    final t = time.trim();
+    final t = normalizeTime(time.trim());
     int base = 3001;
 
     if (t == "09:00") base = 3001;

@@ -16,20 +16,35 @@ class OrdersFlowApi {
     return client.get("$_b/flow/$flowKey");
   }
 
-  Future<Map<String, dynamic>> vehicleSelected(String flowKey, String vehicleType) {
-    return client.post("$_b/vehicle-selected/$flowKey", body: {
-      "vehicleType": vehicleType,
-    });
+  /// ✅ Vehicle Selected — TRY FLOWKEY, if route conflict then fallback ORDERID
+  Future<Map<String, dynamic>> vehicleSelectedSmart({
+  required String flowKey,
+  required String orderId,
+  required String vehicleNo,
+}) async {
+  try {
+    return await client.post(
+      "$_b/vehicle-selected/$flowKey",
+      body: {"vehicleNo": vehicleNo, "vehicleType": vehicleNo},
+    );
+  } catch (e) {
+    return await client.post(
+      "$_b/vehicle-selected/$orderId",
+      body: {"vehicleNo": vehicleNo, "vehicleType": vehicleNo},
+    );
   }
-
+}
+  /// ✅ Loading Start
   Future<Map<String, dynamic>> loadingStart(String flowKey) {
     return client.post("$_b/loading-start", body: {"flowKey": flowKey});
   }
 
+  /// ✅ Loading End
   Future<Map<String, dynamic>> loadingEnd(String flowKey) {
     return client.post("$_b/loading-end", body: {"flowKey": flowKey});
   }
 
+  /// ✅ Assign Driver
   Future<Map<String, dynamic>> assignDriver({
     required String flowKey,
     required String driverId,

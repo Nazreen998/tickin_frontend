@@ -7,7 +7,7 @@ class ApiConfig {
 
   /// 📦 Core modules (mounted directly)
   static const String orders = "/orders";
-  static const String timeline = "/timeline";
+  static const String timeline = "/api/timeline";
   static const String products = "/products";
   static const String trips = "/trips";
 
