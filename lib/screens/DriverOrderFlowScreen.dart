@@ -89,6 +89,18 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
       setState(() {
         order = Map<String, dynamic>.from(res["order"]);
       });
+      if (res["ok"] != true) {
+  throw Exception(res["message"] ?? "Failed");
+}
+
+final o = res["order"];
+if (o == null || o is! Map) {
+  throw Exception("Invalid response: order missing");
+}
+
+setState(() {
+  order = Map<String, dynamic>.from(o);
+});
 
       toast("✅ $nextStatus");
     } catch (e) {
