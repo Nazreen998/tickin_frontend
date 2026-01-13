@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import '../app_scope.dart';
 import 'order_details_screen.dart';
 import 'slots/slot_booking_screen.dart';
-
+import 'order_unified_tracking_screen.dart';
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
 
@@ -260,6 +260,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           child: const Text("SLOT"),
                         ),
                         const SizedBox(width: 6),
+ElevatedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderUnifiedTrackingScreen(orderId: orderId),
+          ),
+        );
+      },
+      child: const Text("TRACK"),
+    ),
 
                         /// ✅ DELETE always visible but disabled if booked
                         IconButton(

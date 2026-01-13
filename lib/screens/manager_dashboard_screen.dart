@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'create_order_screen.dart';
 import 'slots/slot_booking_screen.dart';
+import 'order_unified_tracking_screen.dart';
 
 // ✅ FIX: import slot confirmed orders list screen
 import 'manager_orders_with_slot_screen.dart';
@@ -199,7 +200,15 @@ class ManagerDashboardScreen extends StatelessWidget {
             );
           }),
           // _card(context, Icons.event_available, "Slot Booking", () {}),
-          _card(context, Icons.track_changes, "Tracking", () {}),
+          _card(context, Icons.track_changes, "Tracking", () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+       builder: (_) => const MyOrdersScreen(),
+    ),
+  );
+}),
+
         ];
 
       // ================= SALES OFFICER =================
@@ -217,7 +226,14 @@ class ManagerDashboardScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const ManagerOrdersWithSlotScreen()),
             );
           }),
-          _card(context, Icons.track_changes, "Tracking", () {}),
+          _card(context, Icons.track_changes, "Tracking", () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+       builder: (_) => const MyOrdersScreen(),
+    ),
+  );
+}),
         ];
     }
   }
