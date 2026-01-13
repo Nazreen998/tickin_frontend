@@ -136,82 +136,78 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
 
   /* ---------------- button logic ---------------- */
 
-  Widget _buildActions() {
-    // ✅ IMPORTANT: backend sends REACHED_D1 / REACHED_D2 sometimes
-    // treat it same as "DRIVER_REACHED_DISTRIBUTOR"
-    if (status.startsWith("REACHED_D")) {
-      return _actionButton(
-        label: "📦 Start Unload",
-        onTap: () => _updateStatus("UNLOAD_START"),
-        color: Colors.blueGrey,
-      );
-    }
+ Widget _buildActions() {
+  final s = status;
 
-    switch (status) {
-      case "DRIVER_ASSIGNED":
-        return _actionButton(
-          label: "▶️ Start Trip",
-          onTap: () => _updateStatus("DRIVER_STARTED"),
-          color: Colors.green,
-        );
-
-      case "DRIVER_STARTED":
-        return _actionButton(
-          label: "📍 Reach Distributor",
-          onTap: () =>
-              _updateStatus("DRIVER_REACHED_DISTRIBUTOR", withLocation: true),
-          color: Colors.orange,
-        );
-
-      case "DRIVER_REACHED_DISTRIBUTOR":
-        return _actionButton(
-          label: "📦 Start Unload",
-          onTap: () => _updateStatus("UNLOAD_START"),
-          color: Colors.blueGrey,
-        );
-
-      case "UNLOAD_START":
-        return _actionButton(
-          label: "✅ End Unload",
-          onTap: () => _updateStatus("UNLOAD_END"),
-          color: Colors.indigo,
-        );
-
-      case "UNLOAD_END":
-        return Column(
-          children: [
-            _actionButton(
-              label: "📍 Reach Next Distributor",
-              onTap: () => _updateStatus(
-                "DRIVER_REACHED_DISTRIBUTOR",
-                withLocation: true,
-              ),
-              color: Colors.orange,
-            ),
-            const SizedBox(height: 10),
-            _actionButton(
-              label: "🏭 Reach Warehouse",
-              onTap: () => _updateStatus("WAREHOUSE_REACHED"),
-              color: Colors.red,
-            ),
-          ],
-        );
-
-      case "WAREHOUSE_REACHED":
-        return const Text(
-          "🎉 Trip Completed",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
-        );
-
-      default:
-        return const Text("No actions available");
-    }
+  // ✅ DRIVER_ASSIGNED / DRIVER_STARTED (canonical)
+  if (s == "DRIVER_ASSIGNED") {
+    return _actionButton(
+      label: "▶️ Start Trip",
+      onTap: () => _updateStatus("DRIVER_STARTED"),
+      color: Colors.green,
+    );
   }
 
+  if (s == "DRIVER_STARTED" || s == "DRIVE_STARTED") {
+    return _actionButton(
+      label: "📍 Reach Distributor",
+      onTap: () => _updateStatus("DRIVER_REACHED_DISTRIBUTOR", withLocation: true),
+      color: Colors.orange,
+    );
+  }
+
+  // ✅ reached D1/D2
+  if (s.startsWith("REACHED_D") || s == "DRIVER_REACHED_DISTRIBUTOR") {
+    return _actionButton(
+      label: "📦 Start Unload",
+      onTap: () => _updateStatus("UNLOAD_START"),
+      color: Colors.blueGrey,
+    );
+  }
+
+  // ✅ unloading start D1/D2
+  if (s.startsWith("UNLOADING_START_D") || s == "UNLOAD_START") {
+    return _actionButton(
+      label: "✅ End Unload",
+      onTap: () => _updateStatus("UNLOAD_END"),
+      color: Colors.indigo,
+    );
+  }
+
+  // ✅ unloading end D1/D2
+  if (s.startsWith("UNLOADING_END_D") || s == "UNLOAD_END") {
+    return Column(
+      children: [
+        _actionButton(
+          label: "📍 Reach Next Distributor",
+          onTap: () => _updateStatus("DRIVER_REACHED_DISTRIBUTOR", withLocation: true),
+          color: Colors.orange,
+        ),
+        const SizedBox(height: 10),
+        _actionButton(
+          label: "🏭 Reach Warehouse",
+          onTap: () => _updateStatus("WAREHOUSE_REACHED"),
+          color: Colors.red,
+        ),
+      ],
+    );
+  }
+
+  if (s == "WAREHOUSE_REACHED") {
+    return _actionButton(
+      label: "✅ Complete Delivery",
+      onTap: () => _updateStatus("DELIVERY_COMPLETED"),
+      color: Colors.green,
+    );
+  }
+
+  if (s == "DELIVERY_COMPLETED") {
+    return const Text("🎉 Trip Completed",
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green));
+  }
+
+  return const Text("No actions available");
+}
   /* ---------------- build ---------------- */
 
   @override
