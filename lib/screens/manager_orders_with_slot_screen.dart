@@ -22,7 +22,7 @@ class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScree
   bool loadedOnce = false;
 
   List<Map<String, dynamic>> flows = [];
-  String selectedDate = DateFormat("yyyy-MM-dd").format(DateTime.now());
+                 String selectedDate = DateFormat("yyyy-MM-dd").format(DateTime.now());
 
   void toast(String msg) {
     WidgetsBinding.instance.addPostFrameCallback((_) {

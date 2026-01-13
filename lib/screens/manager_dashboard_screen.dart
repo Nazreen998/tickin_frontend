@@ -195,7 +195,7 @@ class ManagerDashboardScreen extends StatelessWidget {
           _card(context, Icons.list_alt, "My Orders", () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+              MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
             );
           }),
           // _card(context, Icons.event_available, "Slot Booking", () {}),
