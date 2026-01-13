@@ -195,7 +195,7 @@ class ManagerDashboardScreen extends StatelessWidget {
           _card(context, Icons.list_alt, "My Orders", () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
+              MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
             );
           }),
           // _card(context, Icons.event_available, "Slot Booking", () {}),
@@ -211,10 +211,10 @@ class ManagerDashboardScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
             );
           }),
-          _card(context, Icons.list_alt, "My Orders", () {
+          _card(context, Icons.account_tree, "Order Flow", () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+              MaterialPageRoute(builder: (_) => const ManagerOrdersWithSlotScreen()),
             );
           }),
           _card(context, Icons.track_changes, "Tracking", () {}),
