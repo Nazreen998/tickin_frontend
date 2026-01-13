@@ -31,7 +31,18 @@ class _AllowanceConfigTabState extends State<AllowanceConfigTab> {
   @override
   void initState() {
     super.initState();
-    _loadConfig();
+  }
+
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_initialized) {
+      _initialized = true;
+      _loadConfig();
+    }
   }
 
   Future<void> _loadConfig() async {

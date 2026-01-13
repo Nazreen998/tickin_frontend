@@ -12,14 +12,12 @@ class AttendanceDashboardScreen extends StatelessWidget {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.purple.shade700,
-          title: const Text(
-            "Attendance Dashboard",
-            style: TextStyle(fontSize: 18, color: Colors.white),
-          ),
+          title: const Text("Attendance Dashboard"),
           bottom: const TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(text: "Weekly"),
               Tab(text: "Today"),

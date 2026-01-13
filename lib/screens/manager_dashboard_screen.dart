@@ -1,6 +1,7 @@
 import 'package:book_yours/screens/attendance/dashboard_screen.dart';
 import 'package:book_yours/screens/attendance_screen.dart';
 import 'package:book_yours/screens/driver_orders.dart';
+import 'package:book_yours/screens/my_orders_screen.dart';
 import 'package:flutter/material.dart';
 
 import 'create_order_screen.dart';
@@ -191,8 +192,13 @@ class ManagerDashboardScreen extends StatelessWidget {
       // ================= DISTRIBUTOR =================
       case UserRole.distributor:
         return [
-          _card(context, Icons.list_alt, "My Orders", () {}),
-          _card(context, Icons.event_available, "Slot Booking", () {}),
+          _card(context, Icons.list_alt, "My Orders", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
+            );
+          }),
+          // _card(context, Icons.event_available, "Slot Booking", () {}),
           _card(context, Icons.track_changes, "Tracking", () {}),
         ];
 
@@ -205,7 +211,12 @@ class ManagerDashboardScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
             );
           }),
-          _card(context, Icons.event_available, "Slot Booking", () {}),
+          _card(context, Icons.list_alt, "My Orders", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+            );
+          }),
           _card(context, Icons.track_changes, "Tracking", () {}),
         ];
     }

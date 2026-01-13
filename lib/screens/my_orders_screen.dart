@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-
+import 'package:intl/intl.dart';
 import '../app_scope.dart';
 import 'order_details_screen.dart';
 import 'slots/slot_booking_screen.dart';
@@ -22,6 +22,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   String role = "";
   String selectedStatus = "CONFIRMED";
+  String selectedDate = DateFormat("yyyy-MM-dd").format(DateTime.now());
 
   @override
   void didChangeDependencies() {
@@ -30,6 +31,24 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       _loadedOnce = true;
       _initAndLoad();
     }
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.parse(selectedDate),
+      firstDate: now.subtract(const Duration(days: 30)),
+      lastDate: now.add(const Duration(days: 30)),
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      selectedDate = DateFormat("yyyy-MM-dd").format(picked);
+    });
+
+    await _load();
   }
 
   bool get isManager => role.contains("MANAGER") || role.contains("MASTER");
@@ -103,27 +122,31 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   /// ✅ Normalize to LOC# format (auto merge compatibility)
-String _normalizeRawLocId(Map<String, dynamic> o) {
-  String raw = (o["locationId"] ?? "").toString().trim();
-  String mergeKey = (o["mergeKey"] ?? "").toString().trim();
+  String _normalizeRawLocId(Map<String, dynamic> o) {
+    String raw = (o["locationId"] ?? "").toString().trim();
+    String mergeKey = (o["mergeKey"] ?? "").toString().trim();
 
-  if (raw.toUpperCase().startsWith("LOC#")) raw = raw.substring(4);
-  if (raw.toUpperCase().startsWith("LOC#LOC#")) raw = raw.replaceFirst("LOC#LOC#", "");
+    if (raw.toUpperCase().startsWith("LOC#")) raw = raw.substring(4);
+    if (raw.toUpperCase().startsWith("LOC#LOC#")) {
+      raw = raw.replaceFirst("LOC#LOC#", "");
+    }
 
-  if (raw.isEmpty && mergeKey.toUpperCase().startsWith("LOC#")) {
-    raw = mergeKey.substring(4);
+    if (raw.isEmpty && mergeKey.toUpperCase().startsWith("LOC#")) {
+      raw = mergeKey.substring(4);
+    }
+    if (raw.toUpperCase().startsWith("LOC#LOC#")) {
+      raw = raw.replaceFirst("LOC#LOC#", "");
+    }
+    return raw;
   }
-  if (raw.toUpperCase().startsWith("LOC#LOC#")) {
-    raw = raw.replaceFirst("LOC#LOC#", "");
-  }
-  return raw;
-}
+
   Future<void> _openSlotBooking(Map<String, dynamic> o) async {
     final orderId = _safe(o, ["orderId", "id"]);
     final distCode = _safe(o, ["distributorId", "distributorCode"]);
     final distName = _safe(o, ["distributorName", "agencyName"]);
-    final amount =
-        _num(o["amount"] ?? o["totalAmount"] ?? o["grandTotal"]).toDouble();
+    final amount = _num(
+      o["amount"] ?? o["totalAmount"] ?? o["grandTotal"],
+    ).toDouble();
 
     final locationId = _normalizeRawLocId(o);
 
@@ -187,6 +210,10 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
       appBar: AppBar(
         title: Text(isManager ? "All Orders" : "My Orders"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            onPressed: _pickDate,
+          ),
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
       ),
@@ -198,13 +225,21 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
                 final o = orders[i];
 
                 final orderId = _safe(o, ["orderId", "id"]);
-                final dist = _safe(o, ["distributorName", "agencyName", "distributorId"]);
-                final amount =
-                    _num(o["amount"] ?? o["totalAmount"] ?? o["grandTotal"]);
+                final dist = _safe(o, [
+                  "distributorName",
+                  "agencyName",
+                  "distributorId",
+                ]);
+                final amount = _num(
+                  o["amount"] ?? o["totalAmount"] ?? o["grandTotal"],
+                );
                 final slotBooked = _isSlotBooked(o);
 
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   child: ListTile(
                     title: Text(dist),
                     subtitle: Text("Order: $orderId"),
@@ -219,7 +254,9 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
 
                         /// ✅ SLOT always visible but disabled if booked
                         ElevatedButton(
-                          onPressed: slotBooked ? null : () => _openSlotBooking(o),
+                          onPressed: slotBooked
+                              ? null
+                              : () => _openSlotBooking(o),
                           child: const Text("SLOT"),
                         ),
                         const SizedBox(width: 6),

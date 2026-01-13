@@ -11,7 +11,6 @@ class AttendanceTable extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
-        headingRowColor: WidgetStateProperty.all(Colors.purple.shade100),
         columns: columns,
         rows: rows,
         columnSpacing: 18,

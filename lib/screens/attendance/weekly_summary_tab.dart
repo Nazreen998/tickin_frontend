@@ -120,12 +120,14 @@ class _WeeklySummaryTabState extends State<WeeklySummaryTab> {
                     onTap: _pickFromDate,
                     child: Text(
                       "From: ${fromDate?.toString().split(' ')[0] ?? 'Select'}",
+                      style: TextStyle(color: Colors.purple.shade700),
                     ),
                   ),
                   InkWell(
                     onTap: _pickToDate,
                     child: Text(
                       "To: ${toDate?.toString().split(' ')[0] ?? 'Select'}",
+                      style: TextStyle(color: Colors.purple.shade700),
                     ),
                   ),
                 ],

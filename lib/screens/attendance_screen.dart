@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../app_scope.dart';
 import '../api/location.dart';
 
-
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
 
@@ -145,14 +144,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      appBar: AppBar(
-        backgroundColor: Colors.purple.shade700,
-        title: const Text(
-          "Dashboard",
-          style: TextStyle(fontSize: 18, color: Colors.white),
-        ),
-        leading: BackButton(),
-      ),
+      appBar: AppBar(title: const Text("Dashboard"), leading: BackButton()),
 
       body: Center(
         child: Column(
