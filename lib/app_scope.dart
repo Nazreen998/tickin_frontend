@@ -12,6 +12,9 @@ import 'api/orders_flow_api.dart';
 import 'api/users_api.dart';
 import 'api/vehicles_api.dart';
 import 'providers/auth_provider.dart';
+import 'api/attendance_api.dart';
+import 'api/attendance_dashboard_api.dart';
+import 'api/attendance_config_api.dart';
 
 class TickinAppScope extends InheritedWidget {
   final TokenStore tokenStore;
@@ -27,7 +30,9 @@ class TickinAppScope extends InheritedWidget {
   final SlotsApi slotsApi;
 
   final AuthProvider authProvider;
-
+  final AttendanceApi attendanceApi;
+  final AttendanceDashboardApi attendanceDashboardApi;
+  final AttendanceConfigApi attendanceConfigApi;
   TickinAppScope._({
     required super.child,
     required this.tokenStore,
@@ -41,6 +46,9 @@ class TickinAppScope extends InheritedWidget {
     required this.vehiclesApi,
     required this.slotsApi,
     required this.authProvider,
+    required this.attendanceApi,
+    required this.attendanceDashboardApi,
+    required this.attendanceConfigApi,
     super.key,
   });
 
@@ -66,6 +74,9 @@ class TickinAppScope extends InheritedWidget {
       vehiclesApi: VehiclesApi(client),
       slotsApi: SlotsApi(client),
       authProvider: AuthProvider(ts),
+      attendanceApi: AttendanceApi(client),
+      attendanceDashboardApi: AttendanceDashboardApi(client),
+      attendanceConfigApi: AttendanceConfigApi(client),
     );
   }
 

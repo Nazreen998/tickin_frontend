@@ -12,7 +12,7 @@ class ApiConfig {
   static const String trips = "/trips";
 
   // ✅ NEW - only for manager flow routes
-   static const String ordersApi = "/api/orders";
+  static const String ordersApi = "/api/orders";
   static const String ordersRoot = "";
 
   /// ⚙️ API-prefixed modules
@@ -22,4 +22,7 @@ class ApiConfig {
   static const String distributors = "/api/distributors";
   static const String users = "/api/users";
   static const String vehicles = "/api/vehicles";
+
+  // ✅ ATTENDANCE
+  static const String attendance = "/api/attendance";
 }

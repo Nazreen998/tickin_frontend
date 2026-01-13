@@ -1,3 +1,5 @@
+import 'package:book_yours/screens/attendance/dashboard_screen.dart';
+import 'package:book_yours/screens/attendance_screen.dart';
 import 'package:book_yours/screens/driver_orders.dart';
 import 'package:flutter/material.dart';
 
@@ -119,7 +121,14 @@ class ManagerDashboardScreen extends StatelessWidget {
       case UserRole.master:
         return [
           _card(context, Icons.today, "Today Orders", () {}),
-          _card(context, Icons.dashboard, "Dashboard", () {}),
+          _card(context, Icons.dashboard, "Dashboard", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AttendanceDashboardScreen(),
+              ),
+            );
+          }),
           _card(context, Icons.pending_actions, "Pending Orders", () {}),
           _card(context, Icons.track_changes, "Tracking", () {}),
         ];
@@ -154,7 +163,12 @@ class ManagerDashboardScreen extends StatelessWidget {
             );
           }),
           _card(context, Icons.track_changes, "Tracking", () {}),
-          _card(context, Icons.how_to_reg, "Attendance", () {}),
+          _card(context, Icons.how_to_reg, "Attendance", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+            );
+          }),
         ];
 
       // ================= DRIVER =================
@@ -166,7 +180,12 @@ class ManagerDashboardScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const DriverOrdersScreen()),
             );
           }),
-          _card(context, Icons.how_to_reg, "Attendance", () {}),
+          _card(context, Icons.how_to_reg, "Attendance", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+            );
+          }),
         ];
 
       // ================= DISTRIBUTOR =================
