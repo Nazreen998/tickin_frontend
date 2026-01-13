@@ -143,8 +143,7 @@ class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScree
                     final distributors = (f["distributors"] ?? []) as List;
 
                     final totalQty = numSafe(f["totalQty"]);
-                    final grand = numSafe(f["grandAmount"] ?? f["totalAmount"] ?? f["amount"]);
-
+                   
                     final firstOrderId =
                         orderIds.isNotEmpty ? orderIds.first.toString() : "-";
 
@@ -170,7 +169,7 @@ class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScree
                         ),
                         subtitle: Text(
                           "Distributor: $mainDist\n"
-                          "VehicleType: $vType | Qty: $totalQty | Amount: ₹$grand\n"
+                          "VehicleType: $vType | Qty: $totalQty |"
                           "Status: $status\n"
                           "FlowKey: $flowKey",
                         ),
@@ -199,7 +198,6 @@ class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScree
                                 orderId: firstOrderId,
                                 slotTime: slotTime,
                                 distributors: distNames,
-                                totalAmount: grand,
                                 totalQty: totalQty,
                                 statusFromSlot: status,
                               ),
