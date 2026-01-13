@@ -103,27 +103,31 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   /// ✅ Normalize to LOC# format (auto merge compatibility)
-String _normalizeRawLocId(Map<String, dynamic> o) {
-  String raw = (o["locationId"] ?? "").toString().trim();
-  String mergeKey = (o["mergeKey"] ?? "").toString().trim();
+  String _normalizeRawLocId(Map<String, dynamic> o) {
+    String raw = (o["locationId"] ?? "").toString().trim();
+    String mergeKey = (o["mergeKey"] ?? "").toString().trim();
 
-  if (raw.toUpperCase().startsWith("LOC#")) raw = raw.substring(4);
-  if (raw.toUpperCase().startsWith("LOC#LOC#")) raw = raw.replaceFirst("LOC#LOC#", "");
+    if (raw.toUpperCase().startsWith("LOC#")) raw = raw.substring(4);
+    if (raw.toUpperCase().startsWith("LOC#LOC#")) {
+      raw = raw.replaceFirst("LOC#LOC#", "");
+    }
 
-  if (raw.isEmpty && mergeKey.toUpperCase().startsWith("LOC#")) {
-    raw = mergeKey.substring(4);
+    if (raw.isEmpty && mergeKey.toUpperCase().startsWith("LOC#")) {
+      raw = mergeKey.substring(4);
+    }
+    if (raw.toUpperCase().startsWith("LOC#LOC#")) {
+      raw = raw.replaceFirst("LOC#LOC#", "");
+    }
+    return raw;
   }
-  if (raw.toUpperCase().startsWith("LOC#LOC#")) {
-    raw = raw.replaceFirst("LOC#LOC#", "");
-  }
-  return raw;
-}
+
   Future<void> _openSlotBooking(Map<String, dynamic> o) async {
     final orderId = _safe(o, ["orderId", "id"]);
     final distCode = _safe(o, ["distributorId", "distributorCode"]);
     final distName = _safe(o, ["distributorName", "agencyName"]);
-    final amount =
-        _num(o["amount"] ?? o["totalAmount"] ?? o["grandTotal"]).toDouble();
+    final amount = _num(
+      o["amount"] ?? o["totalAmount"] ?? o["grandTotal"],
+    ).toDouble();
 
     final locationId = _normalizeRawLocId(o);
 
@@ -198,13 +202,21 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
                 final o = orders[i];
 
                 final orderId = _safe(o, ["orderId", "id"]);
-                final dist = _safe(o, ["distributorName", "agencyName", "distributorId"]);
-                final amount =
-                    _num(o["amount"] ?? o["totalAmount"] ?? o["grandTotal"]);
+                final dist = _safe(o, [
+                  "distributorName",
+                  "agencyName",
+                  "distributorId",
+                ]);
+                final amount = _num(
+                  o["amount"] ?? o["totalAmount"] ?? o["grandTotal"],
+                );
                 final slotBooked = _isSlotBooked(o);
 
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   child: ListTile(
                     title: Text(dist),
                     subtitle: Text("Order: $orderId"),
@@ -219,7 +231,9 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
 
                         /// ✅ SLOT always visible but disabled if booked
                         ElevatedButton(
-                          onPressed: slotBooked ? null : () => _openSlotBooking(o),
+                          onPressed: slotBooked
+                              ? null
+                              : () => _openSlotBooking(o),
                           child: const Text("SLOT"),
                         ),
                         const SizedBox(width: 6),
