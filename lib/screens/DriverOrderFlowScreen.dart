@@ -30,19 +30,19 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  String get status => (order["status"] ?? "").toString().toUpperCase();
-
+  // ✅ clean + safe status
+  String get status => (order["status"] ?? "").toString().trim().toUpperCase();
   String get orderId => (order["orderId"] ?? "").toString();
 
   /* ---------------- location ---------------- */
 
   Future<Position> _getLocation() async {
-    bool enabled = await Geolocator.isLocationServiceEnabled();
+    final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
       throw Exception("Location service disabled");
     }
 
-    LocationPermission p = await Geolocator.checkPermission();
+    var p = await Geolocator.checkPermission();
     if (p == LocationPermission.denied) {
       p = await Geolocator.requestPermission();
     }
@@ -50,9 +50,7 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
       throw Exception("Location permission denied forever");
     }
 
-    return Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
+    return Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
   }
 
   /* ---------------- api helpers ---------------- */
@@ -61,6 +59,8 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
     String nextStatus, {
     bool withLocation = false,
   }) async {
+    if (loading) return;
+
     setState(() => loading = true);
     try {
       final scope = TickinAppScope.of(context);
@@ -82,25 +82,20 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
         lng: lng,
       );
 
-      if (res["ok"] == false) {
+      // ✅ handle ok=false (Try again / errors)
+      if (res["ok"] != true) {
         throw Exception(res["message"] ?? "Failed");
       }
 
+      // ✅ must contain order
+      final o = res["order"];
+      if (o == null || o is! Map) {
+        throw Exception("Invalid response: order missing");
+      }
+
       setState(() {
-        order = Map<String, dynamic>.from(res["order"]);
+        order = Map<String, dynamic>.from(o);
       });
-      if (res["ok"] != true) {
-  throw Exception(res["message"] ?? "Failed");
-}
-
-final o = res["order"];
-if (o == null || o is! Map) {
-  throw Exception("Invalid response: order missing");
-}
-
-setState(() {
-  order = Map<String, dynamic>.from(o);
-});
 
       toast("✅ $nextStatus");
     } catch (e) {
@@ -142,6 +137,16 @@ setState(() {
   /* ---------------- button logic ---------------- */
 
   Widget _buildActions() {
+    // ✅ IMPORTANT: backend sends REACHED_D1 / REACHED_D2 sometimes
+    // treat it same as "DRIVER_REACHED_DISTRIBUTOR"
+    if (status.startsWith("REACHED_D")) {
+      return _actionButton(
+        label: "📦 Start Unload",
+        onTap: () => _updateStatus("UNLOAD_START"),
+        color: Colors.blueGrey,
+      );
+    }
+
     switch (status) {
       case "DRIVER_ASSIGNED":
         return _actionButton(
@@ -241,9 +246,7 @@ setState(() {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
             _buildActions(),
           ],
         ),
