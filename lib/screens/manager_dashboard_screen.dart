@@ -1,6 +1,7 @@
 import 'package:book_yours/screens/attendance/dashboard_screen.dart';
 import 'package:book_yours/screens/attendance_screen.dart';
 import 'package:book_yours/screens/driver_orders.dart';
+import 'package:book_yours/screens/master_orders_screen.dart';
 import 'package:book_yours/screens/my_orders_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -121,7 +122,15 @@ class ManagerDashboardScreen extends StatelessWidget {
       // ================= MASTER =================
       case UserRole.master:
         return [
-          _card(context, Icons.today, "Today Orders", () {}),
+          _card(context, Icons.today, "Today Orders", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    const MasterOrdersScreen(type: MasterOrderType.today),
+              ),
+            );
+          }),
           _card(context, Icons.dashboard, "Dashboard", () {
             Navigator.push(
               context,
@@ -130,7 +139,15 @@ class ManagerDashboardScreen extends StatelessWidget {
               ),
             );
           }),
-          _card(context, Icons.pending_actions, "Pending Orders", () {}),
+          _card(context, Icons.pending_actions, "Pending Orders", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    const MasterOrdersScreen(type: MasterOrderType.pending),
+              ),
+            );
+          }),
           _card(context, Icons.track_changes, "Tracking", () {}),
         ];
 
@@ -164,6 +181,15 @@ class ManagerDashboardScreen extends StatelessWidget {
             );
           }),
           _card(context, Icons.track_changes, "Tracking", () {}),
+          _card(context, Icons.pending_actions, "Pending Orders", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    const MasterOrdersScreen(type: MasterOrderType.pending),
+              ),
+            );
+          }),
           _card(context, Icons.how_to_reg, "Attendance", () {
             Navigator.push(
               context,
@@ -214,7 +240,9 @@ class ManagerDashboardScreen extends StatelessWidget {
           _card(context, Icons.account_tree, "Order Flow", () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ManagerOrdersWithSlotScreen()),
+              MaterialPageRoute(
+                builder: (_) => const ManagerOrdersWithSlotScreen(),
+              ),
             );
           }),
           _card(context, Icons.track_changes, "Tracking", () {}),
