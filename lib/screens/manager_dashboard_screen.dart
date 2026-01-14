@@ -317,7 +317,12 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
             );
           }),
-          _cardWithBadge(context, Icons.track_changes, "Tracking", () {}),
+          _cardWithBadge(context, Icons.track_changes, "Tracking", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+            );
+          }),
         ];
 
       // ================= SALES OFFICER =================
