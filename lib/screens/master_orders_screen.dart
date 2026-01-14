@@ -241,11 +241,21 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                     ? ""
                     : _formatCreated(createdRaw);
 
-                /// pending reason
-                final String? selectedReason = o["pendingReason"];
-                final bool reasonCommitted =
-                    (o["pendingReason"] != null &&
-                    o["pendingReason"].toString().isNotEmpty);
+                // =====================================================
+                // ✅ SAVED REASON (BACKEND FIELD ONLY)  + DRAFT (UI ONLY)
+                // =====================================================
+                final String savedReason = _safeStr(o, [
+                  "pendingReason",
+                  "reason",
+                  "pending_reason",
+                ], fallback: "");
+
+                // ✅ Draft selection (do NOT affect committed)
+                final String draftReason = (o["pendingReasonDraft"] ?? "")
+                    .toString();
+
+                // ✅ committed ONLY if backend reason exists
+                final bool reasonCommitted = savedReason.trim().isNotEmpty;
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -300,14 +310,18 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
 
                         // =================================================
                         // 🔥 MANAGER ONLY – SELECT + SAVE (UNTIL COMMITTED)
+                        // ✅ FIXED: dropdown select panna SAVE hide ஆகாது
                         // =================================================
                         if (isPendingScreen &&
                             isManager &&
                             !isMaster &&
                             !reasonCommitted) ...[
                           const SizedBox(height: 12),
+
                           DropdownButtonFormField<String>(
-                            initialValue: selectedReason,
+                            value: draftReason.trim().isEmpty
+                                ? null
+                                : draftReason,
                             hint: const Text("Select pending reason"),
                             items: pendingReasons
                                 .map(
@@ -319,22 +333,62 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                                 .toList(),
                             onChanged: (val) {
                               setState(() {
-                                o["pendingReason"] = val;
+                                // ✅ ONLY draft changes
+                                o["pendingReasonDraft"] = val;
                               });
                             },
                           ),
                           const SizedBox(height: 8),
+
                           ElevatedButton(
-                            onPressed: o["pendingReason"] == null
+                            onPressed: draftReason.trim().isEmpty
                                 ? null
                                 : () async {
+                                    final reasonToSave =
+                                        (o["pendingReasonDraft"] ?? "")
+                                            .toString()
+                                            .trim();
+
+                                    if (reasonToSave.isEmpty) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "❌ Select reason first",
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
                                     try {
                                       final scope = TickinAppScope.of(context);
 
-                                      await scope.ordersApi.updatePendingReason(
-                                        orderId: orderId.toString(),
-                                        reason: o["pendingReason"],
+                                      debugPrint(
+                                        "SAVE CLICKED => orderId=$orderId reason=$reasonToSave",
                                       );
+
+                                      final resp = await scope.ordersApi
+                                          .updatePendingReason(
+                                            orderId: orderId.toString(),
+                                            reason: reasonToSave,
+                                          );
+
+                                      debugPrint(
+                                        "Update reason response => $resp",
+                                      );
+
+                                      if (resp["ok"] == false) {
+                                        throw resp["message"] ??
+                                            "Update failed";
+                                      }
+
+                                      // ✅ locally commit so UI shows immediately
+                                      setState(() {
+                                        o["pendingReason"] = reasonToSave;
+                                        o["pendingReasonDraft"] = null;
+                                      });
 
                                       ScaffoldMessenger.of(
                                         context,
@@ -344,6 +398,7 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                                         ),
                                       );
 
+                                      // ✅ reload (for master sync + fresh data)
                                       await _load();
                                     } catch (e) {
                                       ScaffoldMessenger.of(
@@ -372,7 +427,7 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  "Reason: $selectedReason",
+                                  "Reason: $savedReason",
                                   style: const TextStyle(
                                     color: Colors.red,
                                     fontWeight: FontWeight.w600,
