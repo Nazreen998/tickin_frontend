@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../app_scope.dart';
+import 'order_unified_tracking_screen.dart';
 
-enum MasterOrderType { today, pending }
+/// ✅ ADDED: all
+enum MasterOrderType { today, pending, all }
 
 class MasterOrdersScreen extends StatefulWidget {
   final MasterOrderType type;
@@ -19,6 +22,9 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
 
   String role = ""; // MASTER / MANAGER
   List<Map<String, dynamic>> orders = [];
+
+  /// ✅ For ALL screen date filter
+  DateTime selectedDate = DateTime.now();
 
   /// 🔹 Pending reasons
   final List<String> pendingReasons = const [
@@ -57,17 +63,90 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
     await _load();
   }
 
+  // ================= HELPERS =================
+  String _safeStr(Map o, List<String> keys, {String fallback = "-"}) {
+    for (final k in keys) {
+      final v = o[k];
+      if (v != null && v.toString().trim().isNotEmpty) return v.toString();
+    }
+    return fallback;
+  }
+
+  DateTime? _parseDate(dynamic raw) {
+    if (raw == null) return null;
+    final s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    try {
+      return DateTime.parse(s).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _formatCreated(dynamic raw) {
+    if (raw == null) return "";
+    final s = raw.toString().trim();
+    if (s.isEmpty) return "";
+
+    final looksPretty =
+        RegExp(r"[A-Za-z]{3}").hasMatch(s) &&
+        RegExp(r"\bAM\b|\bPM\b", caseSensitive: false).hasMatch(s);
+    if (looksPretty) return s;
+
+    try {
+      final dt = DateTime.parse(s).toLocal();
+      return DateFormat("dd MMM yyyy, hh:mm a").format(dt);
+    } catch (_) {
+      return s;
+    }
+  }
+
+  void _openTracking(String orderId) {
+    if (orderId.trim().isEmpty || orderId == "-") return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderUnifiedTrackingScreen(orderId: orderId),
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 60)),
+      lastDate: DateTime.now().add(const Duration(days: 60)),
+    );
+    if (picked == null) return;
+    setState(() => selectedDate = picked);
+
+    // Optional: reload to get fresh list
+    // await _load();
+  }
+
   // ================= LOAD ORDERS =================
   Future<void> _load() async {
     setState(() => loading = true);
     try {
       final scope = TickinAppScope.of(context);
 
-      final res = widget.type == MasterOrderType.today
-          ? await scope.ordersApi.today()
-          : await scope.ordersApi.pending();
+      Map<String, dynamic> res;
 
-      dynamic raw = res["orders"] ?? res["data"] ?? res;
+      /// ✅ ADDED: all loader
+      if (widget.type == MasterOrderType.today) {
+        res = await scope.ordersApi.today();
+      } else if (widget.type == MasterOrderType.pending) {
+        res = await scope.ordersApi.pending();
+      } else {
+        res = await scope.ordersApi.all(); // ✅ ALL ORDERS
+      }
+
+      dynamic raw = res["orders"] ?? res["items"] ?? res["data"] ?? res;
+      if (raw is Map) raw = raw["orders"] ?? raw["items"] ?? raw["data"] ?? [];
 
       setState(() {
         orders = (raw is List ? raw : [])
@@ -88,32 +167,81 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
+    final isPendingScreen = widget.type == MasterOrderType.pending;
+    final isAllScreen = widget.type == MasterOrderType.all;
+
     final title = widget.type == MasterOrderType.today
         ? "Today Orders"
-        : "Pending Orders";
+        : widget.type == MasterOrderType.pending
+        ? "Pending Orders"
+        : "All Orders";
 
-    final isPendingScreen = widget.type == MasterOrderType.pending;
+    final dateLabel = DateFormat("dd MMM yyyy").format(selectedDate);
+
+    /// ✅ Filter only for ALL screen
+    final List<Map<String, dynamic>> viewOrders = isAllScreen
+        ? orders.where((o) {
+            final raw = _safeStr(o, [
+              "createdAt",
+              "createdOn",
+              "createdDate",
+              "orderDate",
+              "date",
+            ], fallback: "");
+            final dt = _parseDate(raw);
+            if (dt == null) return false;
+            return _isSameDay(dt, selectedDate);
+          }).toList()
+        : orders;
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(isAllScreen ? "$title ($dateLabel)" : title),
+        actions: [
+          /// ✅ ONLY FOR ALL screen
+          if (isAllScreen)
+            IconButton(
+              icon: const Icon(Icons.calendar_month),
+              onPressed: _pickDate,
+            ),
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+        ],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : orders.isEmpty
-          ? const Center(child: Text("No orders found"))
+          : viewOrders.isEmpty
+          ? Center(
+              child: Text(
+                isAllScreen ? "No orders for $dateLabel" : "No orders found",
+                style: TextStyle(color: Colors.grey.shade400),
+              ),
+            )
           : ListView.builder(
-              itemCount: orders.length,
+              itemCount: viewOrders.length,
               itemBuilder: (_, i) {
-                final o = orders[i];
+                final o = viewOrders[i];
 
-                final orderId = o["orderId"] ?? o["id"] ?? "-";
-                final distributor =
-                    o["distributorName"] ?? o["agencyName"] ?? "-";
+                final orderId = _safeStr(o, ["orderId", "id"]);
+                final distributor = _safeStr(o, [
+                  "distributorName",
+                  "agencyName",
+                ]);
                 final amount =
                     o["amount"] ?? o["totalAmount"] ?? o["grandTotal"] ?? 0;
 
-                /// 🔥 IMPORTANT FIX
-                /// pendingReason = dropdown value
-                /// _reasonCommitted = saved to DB or not
+                // ✅ created date show in pending + all
+                final createdRaw = _safeStr(o, [
+                  "createdAt",
+                  "createdOn",
+                  "createdDate",
+                  "orderDate",
+                  "date",
+                ], fallback: "");
+                final createdPretty = createdRaw.isEmpty
+                    ? ""
+                    : _formatCreated(createdRaw);
+
+                /// pending reason
                 final String? selectedReason = o["pendingReason"];
                 final bool reasonCommitted =
                     (o["pendingReason"] != null &&
@@ -129,7 +257,6 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ---------- BASIC INFO ----------
                         Text(
                           distributor,
                           style: const TextStyle(
@@ -145,6 +272,32 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
 
+                        // ✅ created date show for pending + all
+                        if ((isPendingScreen || isAllScreen) &&
+                            createdPretty.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            "Created: $createdPretty",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade300,
+                            ),
+                          ),
+                        ],
+
+                        // ✅ MASTER tracking (Today + Pending + All)
+                        if (isMaster) ...[
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _openTracking(orderId),
+                              icon: const Icon(Icons.track_changes, size: 18),
+                              label: const Text("TRACK"),
+                            ),
+                          ),
+                        ],
+
                         // =================================================
                         // 🔥 MANAGER ONLY – SELECT + SAVE (UNTIL COMMITTED)
                         // =================================================
@@ -153,9 +306,8 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                             !isMaster &&
                             !reasonCommitted) ...[
                           const SizedBox(height: 12),
-
                           DropdownButtonFormField<String>(
-                            value: selectedReason,
+                            initialValue: selectedReason,
                             hint: const Text("Select pending reason"),
                             items: pendingReasons
                                 .map(
@@ -167,13 +319,11 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                                 .toList(),
                             onChanged: (val) {
                               setState(() {
-                                // ❗ only selection, NOT saved
                                 o["pendingReason"] = val;
                               });
                             },
                           ),
                           const SizedBox(height: 8),
-
                           ElevatedButton(
                             onPressed: o["pendingReason"] == null
                                 ? null
@@ -194,7 +344,6 @@ class _MasterOrdersScreenState extends State<MasterOrdersScreen> {
                                         ),
                                       );
 
-                                      // 🔥 IMPORTANT: reload from backend
                                       await _load();
                                     } catch (e) {
                                       ScaffoldMessenger.of(
