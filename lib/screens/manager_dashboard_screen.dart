@@ -5,6 +5,7 @@ import 'package:book_yours/screens/master_orders_screen.dart';
 import 'package:book_yours/screens/my_orders_screen.dart';
 import 'package:flutter/material.dart';
 
+import '../app_scope.dart';
 import 'create_order_screen.dart';
 import 'slots/slot_booking_screen.dart';
 
@@ -16,7 +17,8 @@ import 'manager_orders_with_slot_screen.dart';
 /// =======================================================
 enum UserRole { master, manager, driver, distributor, salesOfficer }
 
-class ManagerDashboardScreen extends StatelessWidget {
+/// ✅ CHANGED: StatelessWidget -> StatefulWidget (to load counts)
+class ManagerDashboardScreen extends StatefulWidget {
   final UserRole role;
 
   const ManagerDashboardScreen({
@@ -25,9 +27,70 @@ class ManagerDashboardScreen extends StatelessWidget {
   });
 
   @override
+  State<ManagerDashboardScreen> createState() => _ManagerDashboardScreenState();
+}
+
+class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
+  bool loadingCounts = false;
+  bool _loadedOnce = false;
+
+  int todayCount = 0;
+  int pendingCount = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_loadedOnce) {
+      _loadedOnce = true;
+      _loadCounts();
+    }
+  }
+
+  Future<void> _loadCounts() async {
+    // Badge counts needed only for master & manager (as per your request)
+    final role = widget.role;
+    if (!(role == UserRole.master || role == UserRole.manager)) return;
+
+    setState(() => loadingCounts = true);
+    try {
+      final scope = TickinAppScope.of(context);
+
+      // today count only for MASTER (backend allowRoles MASTER)
+      if (role == UserRole.master) {
+        final todayRes = await scope.ordersApi.today();
+        dynamic todayRaw = todayRes["orders"] ?? todayRes["data"] ?? todayRes;
+        if (todayRaw is Map) {
+          todayRaw = todayRaw["orders"] ?? todayRaw["data"] ?? [];
+        }
+        todayCount = (todayRaw is List) ? todayRaw.length : 0;
+      }
+
+      // pending count for MASTER + MANAGER (backend allowRoles MASTER, MANAGER)
+      final pendingRes = await scope.ordersApi.pending();
+      dynamic pendingRaw =
+          pendingRes["orders"] ?? pendingRes["data"] ?? pendingRes;
+      if (pendingRaw is Map) {
+        pendingRaw = pendingRaw["orders"] ?? pendingRaw["data"] ?? [];
+      }
+      pendingCount = (pendingRaw is List) ? pendingRaw.length : 0;
+
+      if (mounted) setState(() {});
+    } catch (_) {
+      // silent (badge will show 0)
+    } finally {
+      if (mounted) setState(() => loadingCounts = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("VAGR Dashboard")),
+      appBar: AppBar(
+        title: const Text("VAGR Dashboard"),
+        actions: [
+          IconButton(onPressed: _loadCounts, icon: const Icon(Icons.refresh)),
+        ],
+      ),
 
       /// ===================================================
       /// 🔥 NEW ROLE BASED DASHBOARD (ACTIVE)
@@ -118,20 +181,27 @@ class ManagerDashboardScreen extends StatelessWidget {
   /// 🔥 ROLE SWITCH (NEW – ACTIVE)
   /// ===================================================
   List<Widget> _roleBasedCards(BuildContext context) {
-    switch (role) {
+    switch (widget.role) {
       // ================= MASTER =================
       case UserRole.master:
         return [
-          _card(context, Icons.today, "Today Orders", () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const MasterOrdersScreen(type: MasterOrderType.today),
-              ),
-            );
-          }),
-          _card(context, Icons.dashboard, "Dashboard", () {
+          _cardWithBadge(
+            context,
+            Icons.today,
+            "Today Orders",
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const MasterOrdersScreen(type: MasterOrderType.today),
+                ),
+              );
+            },
+            badgeCount: todayCount,
+            showSpinner: loadingCounts,
+          ),
+          _cardWithBadge(context, Icons.dashboard, "Dashboard", () {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -139,28 +209,43 @@ class ManagerDashboardScreen extends StatelessWidget {
               ),
             );
           }),
-          _card(context, Icons.pending_actions, "Pending Orders", () {
+          _cardWithBadge(
+            context,
+            Icons.pending_actions,
+            "Pending Orders",
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const MasterOrdersScreen(type: MasterOrderType.pending),
+                ),
+              );
+            },
+            badgeCount: pendingCount,
+            showSpinner: loadingCounts,
+          ),
+          _cardWithBadge(context, Icons.list_alt, "All Orders", () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) =>
-                    const MasterOrdersScreen(type: MasterOrderType.pending),
+                    const MasterOrdersScreen(type: MasterOrderType.all),
               ),
             );
           }),
-          _card(context, Icons.track_changes, "Tracking", () {}),
         ];
 
       // ================= MANAGER =================
       case UserRole.manager:
         return [
-          _card(context, Icons.add_box_rounded, "Create Order", () {
+          _cardWithBadge(context, Icons.add_box_rounded, "Create Order", () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
             );
           }),
-          _card(context, Icons.event_available, "Slot Booking", () {
+          _cardWithBadge(context, Icons.event_available, "Slot Booking", () {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -172,7 +257,7 @@ class ManagerDashboardScreen extends StatelessWidget {
               ),
             );
           }),
-          _card(context, Icons.account_tree, "Order Flow", () {
+          _cardWithBadge(context, Icons.account_tree, "Order Flow", () {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -180,17 +265,25 @@ class ManagerDashboardScreen extends StatelessWidget {
               ),
             );
           }),
-          _card(context, Icons.track_changes, "Tracking", () {}),
-          _card(context, Icons.pending_actions, "Pending Orders", () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const MasterOrdersScreen(type: MasterOrderType.pending),
-              ),
-            );
-          }),
-          _card(context, Icons.how_to_reg, "Attendance", () {
+          // ✅ MANAGER pending orders badge too
+          _cardWithBadge(
+            context,
+            Icons.pending_actions,
+            "Pending Orders",
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const MasterOrdersScreen(type: MasterOrderType.pending),
+                ),
+              );
+            },
+            badgeCount: pendingCount,
+            showSpinner: loadingCounts,
+          ),
+
+          _cardWithBadge(context, Icons.how_to_reg, "Attendance", () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AttendanceScreen()),
@@ -201,13 +294,13 @@ class ManagerDashboardScreen extends StatelessWidget {
       // ================= DRIVER =================
       case UserRole.driver:
         return [
-          _card(context, Icons.list_alt, "My Orders", () {
+          _cardWithBadge(context, Icons.list_alt, "My Orders", () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const DriverOrdersScreen()),
             );
           }),
-          _card(context, Icons.how_to_reg, "Attendance", () {
+          _cardWithBadge(context, Icons.how_to_reg, "Attendance", () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AttendanceScreen()),
@@ -218,26 +311,25 @@ class ManagerDashboardScreen extends StatelessWidget {
       // ================= DISTRIBUTOR =================
       case UserRole.distributor:
         return [
-          _card(context, Icons.list_alt, "My Orders", () {
+          _cardWithBadge(context, Icons.list_alt, "My Orders", () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
             );
           }),
-          // _card(context, Icons.event_available, "Slot Booking", () {}),
-          _card(context, Icons.track_changes, "Tracking", () {}),
+          _cardWithBadge(context, Icons.track_changes, "Tracking", () {}),
         ];
 
       // ================= SALES OFFICER =================
       case UserRole.salesOfficer:
         return [
-          _card(context, Icons.add_box_rounded, "Create Order", () {
+          _cardWithBadge(context, Icons.add_box_rounded, "Create Order", () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
             );
           }),
-          _card(context, Icons.account_tree, "Order Flow", () {
+          _cardWithBadge(context, Icons.account_tree, "Order Flow", () {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -245,14 +337,109 @@ class ManagerDashboardScreen extends StatelessWidget {
               ),
             );
           }),
-          _card(context, Icons.track_changes, "Tracking", () {}),
+          _cardWithBadge(context, Icons.track_changes, "Tracking", () {}),
         ];
     }
   }
 
   /// ===================================================
-  /// 🔁 CARD WIDGET (UNCHANGED)
+  /// ✅ NEW CARD (WITH BADGE) — ADDED
   /// ===================================================
+  Widget _cardWithBadge(
+    BuildContext ctx,
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    int? badgeCount,
+    bool showSpinner = false,
+  }) {
+    String badgeText(int n) => n > 9 ? "9+" : "$n";
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Stack(
+          children: [
+            // ✅ MAIN CONTENT ALWAYS DEAD CENTER
+            const Positioned.fill(child: SizedBox()),
+
+            Positioned.fill(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, size: 42),
+                      const SizedBox(height: 12),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ✅ BADGE (TOP RIGHT) - DOES NOT AFFECT CENTER
+            if (badgeCount != null && badgeCount > 0)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: const [
+                      BoxShadow(
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                        color: Colors.black26,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    badgeText(badgeCount),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+
+            // ✅ OPTIONAL SPINNER (BOTTOM RIGHT)
+            if (showSpinner &&
+                (title == "Today Orders" || title == "Pending Orders"))
+              const Positioned(
+                right: 12,
+                bottom: 12,
+                child: SizedBox(
+                  height: 14,
+                  width: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ===================================================
+  /// ❌ OLD CARD WIDGET (COMMENTED – NOT DELETED)
+  /// ===================================================
+  /*
   Widget _card(
     BuildContext ctx,
     IconData icon,
@@ -281,4 +468,5 @@ class ManagerDashboardScreen extends StatelessWidget {
       ),
     );
   }
+  */
 }
