@@ -39,7 +39,7 @@ class SlotGrid extends StatelessWidget {
     final map = <String, SlotItem>{};
     for (final s in slots) {
       final key = s.isMerge
-          ? "MERGE#${s.time}#${s.mergeKey ?? s.sk}"
+          ? "MERGE#${s.mergeKey ?? s.sk}"
           : "FULL#${s.time}#${s.pos ?? ''}";
       map[key] = s;
     }
@@ -138,32 +138,29 @@ class _SlotTile extends StatelessWidget {
     return slot.distributorCode == myDistributorCode;
   }
 
-  /// ✅ For FULL slot: amount = slot.amount
-  /// ✅ For MERGE slot: amount = slot.totalAmount
   String _amountText() {
     final num val = slot.isMerge ? (slot.totalAmount ?? 0) : (slot.amount ?? 0);
     return "₹${val.toStringAsFixed(0)}";
   }
 
-  /// ✅ Merge tile extra info
   String _mergeCountText() {
     if (!slot.isMerge) return "";
     final c = slot.bookingCount ?? (slot.participants.length);
     return c > 0 ? "$c Orders" : "";
   }
 
-  /// ✅ FULL SLOT distributor split lines (A + B)
   List<String> _fullDistributorLines() {
     final raw = (slot.distributorName ?? "").trim();
     if (raw.isEmpty) return [];
-    // backend sends "A + B"
-    return raw.split(" + ").map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return raw
+        .split(" + ")
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
-  /// ✅ Participants list safe conversion
   List<Map<String, dynamic>> _participantsList() {
     final p = slot.participants;
-    if (p == null) return [];
     return p.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
@@ -171,15 +168,18 @@ class _SlotTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = _label();
     final canShowDist = _canShowDistributor();
-
-    /// ✅ show details always for MERGE or booked/waiting full
     final showDetails = slot.isMerge || label != "AVAILABLE";
 
     final title =
         slot.isMerge ? "Merge ${mergeId ?? "-"}" : "Slot ${slot.slotIdLabel}";
-    final session = slot.sessionLabel;
-    final mergeCount = _mergeCountText();
 
+    /// ✅ FULL slot time should be based on POS (A/B/C/D)
+    /// ✅ MERGE slot timing should NOT show
+    final timeTxt = slot.isMerge ? "" : slot.displayTime;
+    final sessionText =
+        slot.isMerge ? slot.sessionLabel : "${slot.sessionLabel} ($timeTxt)";
+
+    final mergeCount = _mergeCountText();
     final participants = _participantsList();
     final fullLines = _fullDistributorLines();
 
@@ -208,7 +208,7 @@ class _SlotTile extends StatelessWidget {
             const SizedBox(height: 4),
 
             Text(
-              session,
+              sessionText,
               style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 11,
@@ -227,7 +227,6 @@ class _SlotTile extends StatelessWidget {
               ),
             ),
 
-            /// ✅ Merge count
             if (slot.isMerge && mergeCount.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
@@ -240,21 +239,20 @@ class _SlotTile extends StatelessWidget {
               ),
             ],
 
-            /// ✅ DETAILS SECTION
             if (showDetails && canShowDist) ...[
               const SizedBox(height: 8),
 
-              /// ✅ MERGE SLOT: always show participants + total
               if (slot.isMerge) ...[
                 ...(() {
                   final list = participants.where((x) {
-                    final dn = (x["distributorName"] ?? "").toString().trim();
+                    final dn =
+                        (x["distributorName"] ?? "").toString().trim();
                     return dn.isNotEmpty;
                   }).toList();
 
                   if (list.isEmpty) {
-                    return [
-                      const Text(
+                    return const [
+                      Text(
                         "-",
                         style: TextStyle(
                           color: Colors.white70,
@@ -266,9 +264,11 @@ class _SlotTile extends StatelessWidget {
                   }
 
                   return list.take(2).map((p) {
-                    final dn = (p["distributorName"] ?? "-").toString().trim();
+                    final dn =
+                        (p["distributorName"] ?? "-").toString().trim();
                     final amt = p["amount"];
-                    final amtNum = (amt is num) ? amt : num.tryParse("$amt") ?? 0;
+                    final amtNum =
+                        (amt is num) ? amt : num.tryParse("$amt") ?? 0;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 3),
@@ -294,10 +294,7 @@ class _SlotTile extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ]
-
-              /// ✅ FULL SLOT: show distributor lines + amount
-              else ...[
+              ] else ...[
                 if (fullLines.isEmpty)
                   const Text(
                     "-",
@@ -323,7 +320,6 @@ class _SlotTile extends StatelessWidget {
                           ),
                         ),
                       ),
-
                 const SizedBox(height: 4),
                 Text(
                   _amountText(),

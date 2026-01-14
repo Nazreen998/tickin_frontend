@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps
+// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unrelated_type_equality_checks, unused_local_variable
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -101,35 +101,65 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
     companyCode = companyCode.isEmpty ? "VAGR_IT" : companyCode;
   }
 
-  String _timeFromSession(String session) {
-    if (session == "Morning") return "09:00";
-    if (session == "Afternoon") return "12:30";
-    if (session == "Evening") return "16:00";
-    return "20:00";
+ List<String> _timesForSession(String session) {
+  if (session == "Morning") {
+    return ["09:00", "09:30", "10:00", "10:30"];
+  }
+  if (session == "Afternoon") {
+    return ["12:00", "12:30", "13:00", "13:30"];
+  }
+  if (session == "Evening") {
+    return ["15:00", "15:30", "16:00", "16:30"];
+  }
+  // Night
+  return ["18:00", "18:30", "19:00", "19:30"];
+}
+List<SlotItem> get sessionFullSlots {
+  final times = _timesForSession(selectedSession);
+
+  // 1️⃣ Filter only FULL slots in this session time range
+  final filtered = allSlots.where((s) {
+    if (!s.isFull) return false;
+
+    final t = SlotItem.normalizeTime(s.time);
+    if (!times.contains(t)) return false;
+
+    if (!isManager && s.normalizedStatus == "DISABLED") return false;
+    return true;
+  }).toList();
+
+  // 2️⃣ Pick ONE slot per POS (A,B,C,D)
+  final Map<String, SlotItem> byPos = {};
+
+  for (final s in filtered) {
+    final pos = (s.pos ?? "").toUpperCase();
+    if (pos.isEmpty) continue;
+
+    // first available slot wins for that POS
+    byPos.putIfAbsent(pos, () => s);
   }
 
-  List<SlotItem> get sessionFullSlots {
-    final time = _timeFromSession(selectedSession);
-    return allSlots.where((s) {
-      if (!s.isFull) return false;
-      if (SlotItem.normalizeTime(s.time) != time) return false;
-      if (!isManager && s.normalizedStatus == "DISABLED") return false;
-      return true;
-    }).toList()
-      ..sort((a, b) => a.slotIdNum.compareTo(b.slotIdNum));
-  }
+  // 3️⃣ Return exactly 4 slots ordered A,B,C,D
+  final result = byPos.values.toList()
+    ..sort((a, b) => (a.pos ?? "").compareTo(b.pos ?? ""));
 
-  List<SlotItem> get sessionMergeSlots {
-    final time = _timeFromSession(selectedSession);
-    return allSlots.where((s) {
-      if (!s.isMerge) return false;
-      if (SlotItem.normalizeTime(s.time) != time) return false;
-      if ((s.tripStatus ?? "").toUpperCase() == "FULL") return false;
-      if ((s.bookingCount ?? 0) <= 0 && (s.totalAmount ?? 0) <= 0) return false;
-      return true;
-    }).toList();
-  }
+  return result;
+}
+List<SlotItem> get sessionMergeSlots {
+  final times = _timesForSession(selectedSession);
 
+  return allSlots.where((s) {
+    if (!s.isMerge) return false;
+
+    final t = SlotItem.normalizeTime(s.time);
+    if (!times.contains(t)) return false;
+
+    if ((s.tripStatus ?? "").toUpperCase() == "FULL") return false;
+    if ((s.bookingCount ?? 0) <= 0 && (s.totalAmount ?? 0) <= 0) return false;
+
+    return true;
+  }).toList();
+}
   /// ✅ VERY IMPORTANT FIX: flatten nested `slots: [fullSlots, mergeSlots]` :contentReference[oaicite:10]{index=10}
   Future<void> _loadGrid() async {
     setState(() => loading = true);

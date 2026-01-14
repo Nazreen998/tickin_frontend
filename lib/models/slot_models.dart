@@ -82,7 +82,20 @@ class SlotItem {
     this.distanceKm,
     this.bookingCount,
   });
+ String get displayTime {
+  if (isMerge) return ""; // merge ku timing venam
 
+  final p = (pos ?? "A").toUpperCase();
+
+  const map = {
+    "Morning": {"A": "09:00", "B": "09:30", "C": "10:00", "D": "10:30"},
+    "Afternoon": {"A": "12:00", "B": "12:30", "C": "13:00", "D": "13:30"},
+    "Evening": {"A": "15:00", "B": "15:30", "C": "16:00", "D": "16:30"},
+    "Night": {"A": "18:00", "B": "18:30", "C": "19:00", "D": "19:30"},
+  };
+
+  return map[sessionLabel]?[p] ?? normalizeTime(time);
+}
   /// ✅ FIX: normalizeTime MUST remove seconds too
   static String normalizeTime(String t) {
     final x = t.trim();
@@ -193,35 +206,46 @@ class SlotItem {
   bool get isAvailable => normalizedStatus == "AVAILABLE";
 
   /// ✅ FIX: sessionLabel now handles seconds and unexpected formats
-  String get sessionLabel {
-    final t = normalizeTime(time.trim());
+String get sessionLabel {
+  // MERGE slots don't show session label
+  if (isMerge) return "";
 
-    if (t == "09:00") return "Morning";
-    if (t == "12:30") return "Afternoon";
-    if (t == "16:00") return "Evening";
-    if (t == "20:00") return "Night";
-    return "Morning";
+  final t = normalizeTime(time);
+  final h = int.tryParse(t.split(":")[0]) ?? 0;
+
+  if (h >= 9 && h < 12) return "Morning";
+  if (h >= 12 && h < 15) return "Afternoon";
+  if (h >= 15 && h < 18) return "Evening";
+  return "Night";
+}
+int get slotIdNum {
+  // ONLY 4 slots per session → A B C D
+  int base;
+
+  switch (sessionLabel) {
+    case "Morning":
+      base = 3000;
+      break;
+    case "Afternoon":
+      base = 3010;
+      break;
+    case "Evening":
+      base = 3020;
+      break;
+    case "Night":
+      base = 3030;
+      break;
+    default:
+      base = 3000;
   }
 
-  int get slotIdNum {
-    final t = normalizeTime(time.trim());
-    int base = 3001;
+  int posOffset = 0;
+  final p = (pos ?? "A").toUpperCase();
+  if (p == "B") posOffset = 1;
+  else if (p == "C") posOffset = 2;
+  else if (p == "D") posOffset = 3;
 
-    if (t == "09:00") base = 3001;
-    else if (t == "12:30") base = 3005;
-    else if (t == "16:00") base = 3009;
-    else if (t == "20:00") base = 3013;
-
-    final p = (pos ?? "A").toUpperCase();
-    int offset = 0;
-
-    if (p == "A") offset = 0;
-    if (p == "B") offset = 1;
-    if (p == "C") offset = 2;
-    if (p == "D") offset = 3;
-
-    return base + offset;
-  }
-
+  return base + posOffset;
+}
   String get slotIdLabel => slotIdNum.toString();
 }
