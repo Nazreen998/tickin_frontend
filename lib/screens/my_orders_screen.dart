@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unused_import
+// ignore_for_file: deprecated_member_use, unused_import, avoid_print
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -108,19 +108,29 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     if (v is num) return v;
     return num.tryParse(v.toString()) ?? 0;
   }
+//dublicates
+bool _isSlotBooked(Map<String, dynamic> o) {
+  // 1) slotBooked flag
+  final v = o["slotBooked"];
+  final slotBooked =
+      (v is bool && v == true) ||
+      (v is num && v == 1) ||
+      (v ?? "").toString().trim().toLowerCase() == "true" ||
+      (v ?? "").toString().trim() == "1";
 
-  bool _isSlotBooked(Map<String, dynamic> o) {
-    final v = o["slotBooked"];
-    if (v is bool) return v;
-    if (v is num) return v == 1;
+  // 2) slotId presence (HALF also has slotId)
+  final slotId = (o["slotId"] ?? "").toString().trim();
 
-    final s = (v ?? "").toString().trim().toLowerCase();
-    if (s == "true" || s == "1" || s == "yes") return true;
-    if (s == "false" || s == "0" || s == "no") return false;
+  // 3) mergedIntoOrderId presence (merged half orders)
+  final mergedInto = (o["mergedIntoOrderId"] ?? "").toString().trim();
 
-    return false;
-  }
+  // ✅ final decision
+  if (slotBooked) return true;
+  if (slotId.isNotEmpty) return true;
+  if (mergedInto.isNotEmpty) return true;
 
+  return false;
+}
   /// ✅ Normalize to LOC# format (auto merge compatibility)
   String _normalizeRawLocId(Map<String, dynamic> o) {
     String raw = (o["locationId"] ?? "").toString().trim();
@@ -234,7 +244,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   o["amount"] ?? o["totalAmount"] ?? o["grandTotal"],
                 );
                 final slotBooked = _isSlotBooked(o);
-
+print("ORDER=$orderId slotBooked=${o["slotBooked"]} slotId=${o["slotId"]} "
+      "slotDate=${o["slotDate"]} slotTime=${o["slotTime"]} slotPos=${o["slotPos"]} "
+      "mergeKey=${o["mergeKey"]} bookingSk=${o["bookingSk"]} mergedIntoOrderId=${o["mergedIntoOrderId"]}");
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 12,
