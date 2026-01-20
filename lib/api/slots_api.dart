@@ -94,5 +94,16 @@ loc = loc.replaceAll(RegExp(r'^(LOC#)+', caseSensitive: false), '');
     "date": date,
   });
 }
+      
+Future<Map<String, dynamic>> availableFullTimes({required String date}) {
+  return client.get("${ApiConfig.slots}/available-full-times", query: {
+    "date": date,
+  });
+}
+
+Future<Map<String, dynamic>> managerManualMergePickTime(Map<String, dynamic> body) {
+  return client.post("${ApiConfig.slots}/merge/manual-pick-time", body: body);
+}
+
     
 }

@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-
+import '../slots/slot_generator.dart'; 
 import '../../app_scope.dart';
 import '../../models/slot_models.dart';
 import '../../widgets/slot_grid.dart';
@@ -101,50 +101,43 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
     companyCode = companyCode.isEmpty ? "VAGR_IT" : companyCode;
   }
 
- List<String> _timesForSession(String session) {
-  if (session == "Morning") {
-    return ["09:00", "09:30", "10:00", "10:30"];
-  }
-  if (session == "Afternoon") {
-    return ["12:00", "12:30", "13:00", "13:30"];
-  }
-  if (session == "Evening") {
-    return ["15:00", "15:30", "16:00", "16:30"];
-  }
-  // Night
-  return ["18:00", "18:30", "19:00", "19:30"];
+List<String> _timesForSession(String session) {
+  return sessionTimes[session] ?? const [];
 }
 List<SlotItem> get sessionFullSlots {
   final times = _timesForSession(selectedSession);
 
-  // 1️⃣ Filter only FULL slots in this session time range
-  final filtered = allSlots.where((s) {
-    if (!s.isFull) return false;
+  final List<SlotItem> result = [];
 
-    final t = SlotItem.normalizeTime(s.time);
-    if (!times.contains(t)) return false;
+  for (final t in times) {
+    // அந்த time-க்கு இருக்குற எல்லா FULL slots (A,B,C,D) எடுத்துக்கோ
+    final slotsForTime = allSlots.where((s) {
+      if (!s.isFull) return false;
 
-    if (!isManager && s.normalizedStatus == "DISABLED") return false;
-    return true;
-  }).toList();
+      final nt = SlotItem.normalizeTime(s.time);
+      if (nt != t) return false;
 
-  // 2️⃣ Pick ONE slot per POS (A,B,C,D)
-  final Map<String, SlotItem> byPos = {};
+      if (!isManager && s.normalizedStatus == "DISABLED") return false;
+      return true;
+    }).toList();
 
-  for (final s in filtered) {
-    final pos = (s.pos ?? "").toUpperCase();
-    if (pos.isEmpty) continue;
+    if (slotsForTime.isEmpty) continue;
 
-    // first available slot wins for that POS
-    byPos.putIfAbsent(pos, () => s);
+    // ✅ முக்கியம்:
+    // அந்த time-ல எந்த pos-லாவது BOOKED இருந்தா அதையே tile-ஆ காட்டனும்
+    SlotItem pick = slotsForTime.first;
+    final booked = slotsForTime.where((x) => x.isBooked).toList();
+    if (booked.isNotEmpty) {
+      pick = booked.first; // booked pos tile காட்டும்
+    }
+
+    result.add(pick);
   }
 
-  // 3️⃣ Return exactly 4 slots ordered A,B,C,D
-  final result = byPos.values.toList()
-    ..sort((a, b) => (a.pos ?? "").compareTo(b.pos ?? ""));
-
+  // times order already correct (09:00, 09:30, ...)
   return result;
 }
+
 List<SlotItem> get sessionMergeSlots {
   final times = _timesForSession(selectedSession);
 
@@ -252,24 +245,39 @@ List<SlotItem> get sessionMergeSlots {
         await _enableSlot(slot);
         return;
       }
+if (slot.isBooked) {
+  final act = await showDialog<String>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Slot Action"),
+      content: Text("Slot ${slot.slotIdLabel} (${slot.sessionLabel})"),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, "cancel"),
+          child: const Text("Cancel"),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, "rebook"),
+          child: const Text("Rebook"),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Close"),
+        ),
+      ],
+    ),
+  );
 
-      if (slot.isBooked) {
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Cancel Booking?"),
-            content: Text("Slot ${slot.slotIdLabel} already booked.\nCancel it?"),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("No")),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Yes Cancel")),
-            ],
-          ),
-        );
+  if (act == "cancel") {
+    await _cancelFullSlot(slot);
+  }
 
-        if (ok == true) await _cancelFullSlot(slot);
-        return;
-      }
-
+  if (act == "rebook") {
+    await _cancelFullSlot(slot);
+    await _loadGrid();
+  }
+  return;
+}
       final act = await showDialog<String>(
         context: context,
         builder: (_) => AlertDialog(
@@ -312,26 +320,74 @@ List<SlotItem> get sessionMergeSlots {
     final ts = (mergeSlot.tripStatus ?? "").toUpperCase();
     final canConfirm = ts.contains("READY"); // READY_FOR_CONFIRM
 
-    final act = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Merge Slot Action"),
-        content: Text("MergeKey: ${mergeSlot.mergeKey}\nTotal: ₹${mergeSlot.totalAmount ?? 0}\nStatus: ${mergeSlot.tripStatus}"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, "manual"), child: const Text("Manual Merge")),
-          if (canConfirm)
-            ElevatedButton(onPressed: () => Navigator.pop(context, "confirm"), child: const Text("Confirm")),
-          TextButton(onPressed: () => Navigator.pop(context, null), child: const Text("Close")),
-        ],
+final act = await showDialog<String>(
+  context: context,
+  builder: (_) => AlertDialog(
+    title: const Text("Merge Slot Action"),
+    content: Text(
+      "MergeKey: ${mergeSlot.mergeKey}\n"
+      "Total: ₹${mergeSlot.totalAmount ?? 0}\n"
+      "Status: ${mergeSlot.tripStatus}",
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, "cancel"),
+        child: const Text("Cancel Orders"),
       ),
-    );
-
-    if (act == "confirm") {
-      await _confirmMerge(mergeSlot);
-    } else if (act == "manual") {
-      await _manualMergeFlow(mergeSlot);
-    }
+      TextButton(
+        onPressed: () => Navigator.pop(context, "rebook"),
+        child: const Text("Rebook"),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, "manual"),
+        child: const Text("Manual Merge"),
+      ),
+      if (canConfirm)
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, "confirm"),
+          child: const Text("Confirm"),
+        ),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text("Close"),
+      ),
+    ],
+  ),
+);
+if (act == "confirm") {
+  await _confirmMerge(mergeSlot);
+} else if (act == "manual") {
+  await _manualMergeFlow(mergeSlot);
+} else if (act == "cancel") {
+  await _cancelHalfOrders(mergeSlot);
+} else if (act == "rebook") {
+  await _cancelHalfOrders(mergeSlot);
+  await _loadGrid();
+}
   }
+Future<void> _cancelHalfOrders(SlotItem mergeSlot) async {
+  try {
+    final scope = TickinAppScope.of(context);
+
+    for (final p in mergeSlot.participants) {
+      final orderId = p["orderId"];
+      if (orderId == null) continue;
+
+      await scope.slotsApi.managerCancelBooking({
+        "companyCode": companyCode,
+        "date": selectedDate,
+        "time": mergeSlot.time,
+        "mergeKey": mergeSlot.mergeKey,
+        "orderId": orderId,
+      });
+    }
+
+    toast("✅ HALF bookings cancelled");
+    await _loadGrid();
+  } catch (e) {
+    toast("❌ HALF cancel failed: $e");
+  }
+}
 
   Future<String> _managerId() async {
     try {
@@ -366,50 +422,94 @@ List<SlotItem> get sessionMergeSlots {
   }
 
   /// ✅ Manual merge dropdown -> Eligible bookings (time wise)
-  Future<void> _manualMergeFlow(SlotItem mergeSlot) async {
-    try {
-      final scope = TickinAppScope.of(context);
-      final res = await scope.httpClient.get(
-        "/api/slots/eligible-half-bookings",
-        query: {"date": selectedDate, "time": mergeSlot.time},
-      );
+Future<void> _manualMergeFlow(SlotItem mergeSlot) async {
+  try {
+    final scope = TickinAppScope.of(context);
 
-      final listRaw = (res["bookings"] ?? []) as List;
-      final allBookings = listRaw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    // ✅ same date - get ALL waiting HALF (no time filter)
+    final res = await scope.slotsApi.waitingHalfByDate(date: selectedDate);
 
-      if (allBookings.isEmpty) {
-        toast("No waiting HALF bookings for this time");
-        return;
-      }
+    final listRaw = (res["bookings"] ?? res["data"] ?? []) as List;
 
-      final selected = await showDialog<List<String>>(
-        context: context,
-        builder: (_) => _MultiSelectOrdersDialog(bookings: allBookings),
-      );
+    final allBookings = listRaw
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .where((b) {
+          final vt = (b["vehicleType"] ?? "").toString().toUpperCase();
+          final st = (b["status"] ?? "").toString().toUpperCase();
+          return vt == "HALF" && (st.contains("PENDING") || st.contains("WAIT"));
+        })
+        .toList();
 
-      if (selected == null || selected.length < 2) {
-        toast("Select at least 2 orders");
-        return;
-      }
-
-      final managerId = await _managerId();
-
-      await scope.slotsApi.managerMergeOrdersManual({
-        "companyCode": companyCode,
-        "date": selectedDate,
-        "time": mergeSlot.time,
-        "orderIds": selected,
-        "targetMergeKey": mergeSlot.mergeKey,
-        "managerId": managerId,
-      });
-
-      toast("✅ Manual merge done");
-      await _loadGrid();
-    } catch (e) {
-      toast("❌ Manual merge failed: $e");
+    if (allBookings.isEmpty) {
+      toast("No waiting HALF bookings for this date");
+      return;
     }
-  }
 
+    // ✅ optional: sort by time so it's easy
+    allBookings.sort((a, b) {
+      final ta = (a["slotTime"] ?? a["time"] ?? "").toString();
+final tb = (b["slotTime"] ?? b["time"] ?? "").toString();
+      return ta.compareTo(tb);
+    });
+
+    final selectedBookingSks = await showDialog<List<String>>(
+  context: context,
+  builder: (_) => _MultiSelectOrdersDialog(bookings: allBookings),
+);
+
+if (selectedBookingSks == null || selectedBookingSks.length < 2) {
+  toast("Select at least 2 orders");
+  return;
+}
+
+// 1) fetch available full times
+final avail = await scope.slotsApi.availableFullTimes(date: selectedDate);
+final rawTimes = avail["times"];
+final List<String> times = (rawTimes is List)
+    ? rawTimes.map((e) => e.toString()).toList()
+    : <String>[];
+
+
+if (times.isEmpty) {
+  toast("No FULL slots available for this date");
+  return;
+}
+
+// 2) ask manager to pick time
+final targetTime = await showDialog<String>(
+  context: context,
+  builder: (_) {
+    final List<Widget> children = times.map<Widget>((t) {
+      return SimpleDialogOption(
+        onPressed: () => Navigator.pop(context, t),
+        child: Text(t),
+      );
+    }).toList();
+
+    return SimpleDialog(
+      title: const Text("Select Available Time"),
+      children: children,
+    );
+  },
+);
+
+if (targetTime == null) return;
+
+// 3) call new backend endpoint
+await scope.slotsApi.managerManualMergePickTime({
+  "date": selectedDate,
+  "targetTime": targetTime,
+  "bookingSks": selectedBookingSks,
+});
+
+toast("✅ Manual merge done");
+await _loadGrid();
+
+  } catch (e) {
+    toast("❌ Manual merge failed: $e");
+  }
+}
   Future<void> _disableSlot(SlotItem slot) async {
     try {
       final scope = TickinAppScope.of(context);
@@ -443,31 +543,29 @@ List<SlotItem> get sessionMergeSlots {
       toast("❌ Enable failed: $e");
     }
   }
+Future<void> _cancelFullSlot(SlotItem slot) async {
+  try {
+    final scope = TickinAppScope.of(context);
 
-  Future<void> _cancelFullSlot(SlotItem slot) async {
-    try {
-      final scope = TickinAppScope.of(context);
-
-      if (slot.pos == null || slot.userId == null) {
-        toast("Cancel requires pos + userId");
-        return;
-      }
-
-      await scope.slotsApi.managerCancelBooking({
-        "companyCode": companyCode,
-        "date": selectedDate,
-        "time": slot.time,
-        "pos": slot.pos,
-        "userId": slot.userId,
-        if (slot.orderId != null) "orderId": slot.orderId,
-      });
-
-      toast("✅ Booking cancelled");
-      await _loadGrid();
-    } catch (e) {
-      toast("❌ Cancel failed: $e");
+    if (slot.pos == null) {
+      toast("Cancel requires slot position");
+      return;
     }
+
+    await scope.slotsApi.managerCancelBooking({
+      "companyCode": companyCode,
+      "date": selectedDate,
+      "time": slot.time,
+      "pos": slot.pos,
+      if (slot.orderId != null) "orderId": slot.orderId,
+    });
+
+    toast("✅ Booking cancelled");
+    await _loadGrid();
+  } catch (e) {
+    toast("❌ Cancel failed: $e");
   }
+}
 
   Future<void> _editThreshold() async {
     final ctrl = TextEditingController(text: rules.maxAmount.toStringAsFixed(0));
@@ -656,21 +754,23 @@ class _MultiSelectOrdersDialogState extends State<_MultiSelectOrdersDialog> {
             final dn = (b["distributorName"] ?? "-").toString();
             final amt = (b["amount"] ?? 0);
             final numAmt = (amt is num) ? amt : num.tryParse("$amt") ?? 0;
-
-            return CheckboxListTile(
-              value: selected.contains(oid),
-              onChanged: (v) {
-                setState(() {
-                  if (v == true) {
-                    selected.add(oid);
-                  } else {
-                    selected.remove(oid);
-                  }
-                });
-              },
-              title: Text("$dn | ₹${numAmt.toStringAsFixed(0)}"),
-              subtitle: Text("Order: $oid"),
-            );
+ // ✅ FIX: define time
+  final time = (b["time"] ?? b["slotTime"] ?? b["bookingTime"] ?? "-").toString();
+  final bookingSk = (b["sk"] ?? b["bookingSk"] ?? "").toString();
+return CheckboxListTile(
+  value: selected.contains(bookingSk),
+  onChanged: (v) {
+    setState(() {
+      if (v == true) {
+        selected.add(bookingSk);
+      } else {
+        selected.remove(bookingSk);
+      }
+    });
+  },
+  title: Text("$dn | ₹${numAmt.toStringAsFixed(0)}"),
+  subtitle: Text("Time: $time   |   Order: $oid"),
+);
           },
         ),
       ),
