@@ -7,12 +7,20 @@ class SlotRulesCard extends StatelessWidget {
   final VoidCallback? onEditThreshold;
   final VoidCallback? onToggleNightSlot;
 
+  // ✅ NEW: location selector inputs
+  final String? selectedLocationId; // "1".."6"
+  final ValueChanged<String?>? onLocationChanged;
+
   const SlotRulesCard({
     super.key,
     required this.rules,
     this.isManager = false,
     this.onEditThreshold,
     this.onToggleNightSlot,
+
+    // ✅ NEW
+    this.selectedLocationId,
+    this.onLocationChanged,
   });
 
   @override
@@ -64,6 +72,8 @@ class SlotRulesCard extends StatelessWidget {
               "Night slot opens after: ${rules.lastSlotOpenAfter}",
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
+
+            const SizedBox(height: 14),
           ],
         ),
       ),

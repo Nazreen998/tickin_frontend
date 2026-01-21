@@ -67,6 +67,11 @@ loc = loc.replaceAll(RegExp(r'^(LOC#)+', caseSensitive: false), '');
   Future<Map<String, dynamic>> managerMoveMerge(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/merge/move", body: body);
 
+Future<Map<String, dynamic>> managerConfirmDayMerge(
+  Map<String, dynamic> body,
+) =>
+    client.post("${ApiConfig.slots}/merge/confirm-day", body: body);
+
   Future<Map<String, dynamic>> managerEditTime(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/edit-time", body: body);
 

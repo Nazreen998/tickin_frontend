@@ -60,6 +60,7 @@ class _SlotBookingScreenState extends State<SlotBookingScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
     if (selectedDate.isEmpty) {
       selectedDate = _today();
       _init();
@@ -110,7 +111,7 @@ List<SlotItem> get sessionFullSlots {
   final List<SlotItem> result = [];
 
   for (final t in times) {
-    // அந்த time-க்கு இருக்குற எல்லா FULL slots (A,B,C,D) எடுத்துக்கோ
+    // FULL slots (A,B,C,D) 
     final slotsForTime = allSlots.where((s) {
       if (!s.isFull) return false;
 
@@ -198,41 +199,38 @@ List<SlotItem> get sessionMergeSlots {
   }
 
   /// ✅ booking (backend decides FULL / HALF based on amount threshold) :contentReference[oaicite:11]{index=11}
-  Future<void> _bookOrderSlot(SlotItem slot) async {
-    if (booking) return;
+Future<void> _bookOrderSlot(SlotItem slot) async {
+  if (booking) return;
 
-    if (widget.orderId == null || widget.amount == null) {
-      toast("❌ OrderId / Amount missing");
-      return;
-    }
-
-    setState(() => booking = true);
-
-    try {
-      final scope = TickinAppScope.of(context);
-
-      await scope.slotsApi.book(
-        companyCode: companyCode,
-        date: selectedDate,
-        time: slot.time,
-        pos: slot.pos,
-        distributorCode: widget.distributorCode,
-        distributorName: widget.distributorName,
-        amount: widget.amount!,
-        orderId: widget.orderId!,
-        locationId: widget.locationId, // ✅ locationId 1..5 for auto merge
-      );
-
-      toast("✅ Booking success");
-      await _loadGrid();
-      if (!isManager && mounted) Navigator.pop(context, true);
-    } catch (e) {
-      toast("❌ Booking failed: $e");
-    } finally {
-      if (mounted) setState(() => booking = false);
-    }
+  if (widget.orderId == null || widget.amount == null) {
+    toast("❌ OrderId / Amount missing");
+    return;
   }
+  setState(() => booking = true);
 
+  try {
+    final scope = TickinAppScope.of(context);
+
+    await scope.slotsApi.book(
+      companyCode: companyCode,
+      date: selectedDate,
+      time: slot.time,
+      pos: slot.pos,
+      distributorCode: widget.distributorCode,
+      distributorName: widget.distributorName,
+      amount: widget.amount!,
+      orderId: widget.orderId!,
+    );
+
+    toast("✅ Booking success");
+    await _loadGrid();
+    if (!isManager && mounted) Navigator.pop(context, true);
+  } catch (e) {
+    toast("❌ Booking failed: $e");
+  } finally {
+    if (mounted) setState(() => booking = false);
+  }
+}
   /// ✅ FULL SLOT tap
   Future<void> _onFullSlotTap(SlotItem slot) async {
     if (booking) return;
@@ -355,7 +353,7 @@ final act = await showDialog<String>(
   ),
 );
 if (act == "confirm") {
-  await _confirmMerge(mergeSlot);
+  await _confirmDayMerge(mergeSlot);
 } else if (act == "manual") {
   await _manualMergeFlow(mergeSlot);
 } else if (act == "cancel") {
@@ -400,6 +398,59 @@ Future<void> _cancelHalfOrders(SlotItem mergeSlot) async {
     } catch (_) {}
     return "MANAGER";
   }
+Future<void> _confirmDayMerge(SlotItem mergeSlot) async {
+  try {
+    final scope = TickinAppScope.of(context);
+    final managerId = await _managerId();
+
+    // 1️⃣ get available FULL times
+    final avail = await scope.slotsApi.availableFullTimes(
+      date: selectedDate,
+    );
+
+    final rawTimes = avail["times"];
+    final List<String> times = (rawTimes is List)
+        ? rawTimes.map((e) => e.toString()).toList()
+        : <String>[];
+
+    if (times.isEmpty) {
+      toast("❌ No FULL slots available");
+      return;
+    }
+
+    // 2️⃣ ask manager to pick time
+    final targetTime = await showDialog<String>(
+      context: context,
+      builder: (_) => SimpleDialog(
+        title: const Text("Select FULL slot time"),
+        children: times
+            .map(
+              (t) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, t),
+                child: Text(t),
+              ),
+            )
+            .toList(),
+      ),
+    );
+
+    if (targetTime == null) return;
+
+    // 3️⃣ call DATE-level merge confirm API
+    await scope.slotsApi.managerConfirmDayMerge({
+      "companyCode": companyCode,
+      "date": selectedDate,
+      "mergeKey": mergeSlot.mergeKey,
+      "targetTime": targetTime,
+      "managerId": managerId,
+    });
+
+    toast("✅ Merge confirmed → FULL booked");
+    await _loadGrid();
+  } catch (e) {
+    toast("❌ Confirm failed: $e");
+  }
+}
 
   Future<void> _confirmMerge(SlotItem mergeSlot) async {
     try {

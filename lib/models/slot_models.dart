@@ -52,7 +52,7 @@ class SlotItem {
   final String? locationId;
   final String? companyCode;
   final String? date;
-
+  
   final List<Map<String, dynamic>> participants;
   final double? distanceKm;
   final int? bookingCount;
