@@ -1,4 +1,5 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
+import '../screens/slots/slot_generator.dart';
 
 class SlotRules {
   final double maxAmount;
@@ -51,7 +52,7 @@ class SlotItem {
   final String? locationId;
   final String? companyCode;
   final String? date;
-
+  
   final List<Map<String, dynamic>> participants;
   final double? distanceKm;
   final int? bookingCount;
@@ -82,20 +83,11 @@ class SlotItem {
     this.distanceKm,
     this.bookingCount,
   });
- String get displayTime {
-  if (isMerge) return ""; // merge ku timing venam
-
-  final p = (pos ?? "A").toUpperCase();
-
-  const map = {
-    "Morning": {"A": "09:00", "B": "09:30", "C": "10:00", "D": "10:30"},
-    "Afternoon": {"A": "12:00", "B": "12:30", "C": "13:00", "D": "13:30"},
-    "Evening": {"A": "15:00", "B": "15:30", "C": "16:00", "D": "16:30"},
-    "Night": {"A": "18:00", "B": "18:30", "C": "19:00", "D": "19:30"},
-  };
-
-  return map[sessionLabel]?[p] ?? normalizeTime(time);
+String get displayTime {
+  if (isMerge) return "";
+  return normalizeTime(time);
 }
+
   /// ✅ FIX: normalizeTime MUST remove seconds too
   static String normalizeTime(String t) {
     final x = t.trim();
@@ -207,17 +199,21 @@ class SlotItem {
 
   /// ✅ FIX: sessionLabel now handles seconds and unexpected formats
 String get sessionLabel {
-  // MERGE slots don't show session label
   if (isMerge) return "";
-
   final t = normalizeTime(time);
-  final h = int.tryParse(t.split(":")[0]) ?? 0;
 
+  for (final e in sessionTimes.entries) {
+    if (e.value.contains(t)) return e.key;
+  }
+
+  // fallback
+  final h = int.tryParse(t.split(":")[0]) ?? 0;
   if (h >= 9 && h < 12) return "Morning";
   if (h >= 12 && h < 15) return "Afternoon";
   if (h >= 15 && h < 18) return "Evening";
   return "Night";
 }
+
 int get slotIdNum {
   // ONLY 4 slots per session → A B C D
   int base;

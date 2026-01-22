@@ -39,7 +39,7 @@ class SlotGrid extends StatelessWidget {
     final map = <String, SlotItem>{};
     for (final s in slots) {
       final key = s.isMerge
-          ? "MERGE#${s.mergeKey ?? s.sk}"
+          ? "MERGE#${s.mergeKey ?? s.sk}#${s.time}"
           : "FULL#${s.time}#${s.pos ?? ''}";
       map[key] = s;
     }
@@ -189,12 +189,45 @@ class _SlotTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: _bg(),
-          borderRadius: BorderRadius.circular(16),
+  color: _bg(),
+  borderRadius: BorderRadius.circular(16),
+
+  // 🔥 BLINK EFFECT
+  border: slot.blink
+      ? Border.all(color: Colors.redAccent, width: 3)
+      : null,
+
+  boxShadow: slot.blink
+      ? [
+          BoxShadow(
+            color: Colors.redAccent.withOpacity(0.7),
+            blurRadius: 14,
+            spreadRadius: 2,
+          ),
+        ]
+      : [],
+),
+       child: Column(
+  mainAxisSize: MainAxisSize.min,
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    if (slot.isMerge && slot.blink)
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: Colors.redAccent,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+        child: const Text(
+          "⚠ BLINK",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
             Text(
               title,
               style: const TextStyle(
@@ -205,6 +238,7 @@ class _SlotTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            
             const SizedBox(height: 4),
 
             Text(

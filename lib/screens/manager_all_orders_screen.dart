@@ -69,19 +69,29 @@ class _ManagerAllOrdersScreenState extends State<ManagerAllOrdersScreen> {
   }
 
   /// ✅ handles bool / "true" / 1 etc
-  bool _isSlotBooked(Map<String, dynamic> o) {
-    final v = o["slotBooked"];
-    if (v is bool) return v;
-    if (v is num) return v == 1;
+bool _isSlotBooked(Map<String, dynamic> o) {
+  // 1) slotBooked flag
+  final v = o["slotBooked"];
+  final slotBooked =
+      (v is bool && v == true) ||
+      (v is num && v == 1) ||
+      (v ?? "").toString().trim().toLowerCase() == "true" ||
+      (v ?? "").toString().trim() == "1";
 
-    final s = (v ?? "").toString().trim().toLowerCase();
-    if (s == "true" || s == "1" || s == "yes") return true;
-    if (s == "false" || s == "0" || s == "no") return false;
+  // 2) slotId presence (HALF also has slotId)
+  final slotId = (o["slotId"] ?? "").toString().trim();
 
-    return false;
-  }
+  // 3) mergedIntoOrderId presence (merged half orders)
+  final mergedInto = (o["mergedIntoOrderId"] ?? "").toString().trim();
 
-  /// ✅ IMPORTANT: always returns raw locationId (ex: "1","2","3","4","5")
+  // ✅ final decision
+  if (slotBooked) return true;
+  if (slotId.isNotEmpty) return true;
+  if (mergedInto.isNotEmpty) return true;
+
+  return false;
+}
+// ✅ IMPORTANT: always returns raw locationId (ex: "1","2","3","4","5")
 String _normalizeRawLocId(Map<String, dynamic> o) {
   String raw = (o["locationId"] ?? o["mergeKey"] ?? "").toString().trim();
 
@@ -136,42 +146,79 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
 
   if (ok == true) await _load();
 }
+Future<void> _cancelBookedSlot(Map<String, dynamic> o) async {
+  final scope = TickinAppScope.of(context);
 
-  Future<void> _cancelBookedSlot(Map<String, dynamic> o) async {
-    final scope = TickinAppScope.of(context);
-    final orderId = _safe(o, ["orderId", "id"]);
+  final orderId = _safe(o, ["orderId", "id"]);
+  if (orderId.isEmpty || orderId == "-") {
+    toast("❌ OrderId missing");
+    return;
+  }
 
-    if (orderId.isEmpty || orderId == "-") {
-      toast("❌ OrderId missing");
+  // ✅ these keys must come from backend orders list (important!)
+final slotDate = (o["slotDate"] ?? "").toString().trim();
+final slotTime = (o["slotTime"] ?? "").toString().trim();
+final slotPos  = (o["slotPos"] ?? o["pos"] ?? "").toString().trim();
+final bookedBy = (o["bookedBy"] ?? o["userId"] ?? "").toString().trim();
+  // HALF cancel keys (if available)
+final bookingSk = (o["bookingSk"] ?? "").toString().trim();
+final mergeKey  = (o["mergeKey"] ?? "").toString().trim();
+if (slotDate.isEmpty || slotTime.isEmpty) {
+    toast("❌ slotDate / slotTime missing in order payload");
+    return;
+  }
+
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Cancel Slot Booking?"),
+      content: Text("Order: $orderId\nCancel slot and rebook again?"),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text("No"),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text("Yes Cancel"),
+        ),
+      ],
+    ),
+  );
+
+  if (ok != true) return;
+
+  try {
+    // ✅ FULL cancel payload
+    if (slotPos.isNotEmpty && bookedBy.isNotEmpty) {
+      await scope.slotsApi.managerCancelBooking({
+        "date": slotDate,
+        "time": slotTime,
+        "pos": slotPos,
+        "userId": bookedBy,
+        "orderId": orderId,
+      });
+    }
+    // ✅ HALF cancel payload (needs bookingSk + mergeKey)
+    else if (bookingSk.isNotEmpty && mergeKey.isNotEmpty) {
+      await scope.slotsApi.managerCancelBooking({
+        "date": slotDate,
+        "time": slotTime,
+        "bookingSk": bookingSk,
+        "mergeKey": mergeKey,
+        "orderId": orderId,
+      });
+    } else {
+      toast("❌ Cancel failed: missing pos/userId OR bookingSk/mergeKey");
       return;
     }
 
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Cancel Slot Booking?"),
-        content: Text("Order: $orderId\nCancel slot and rebook again?"),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("No")),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Yes Cancel")),
-        ],
-      ),
-    );
-
-    if (ok != true) return;
-
-    try {
-      await scope.ordersApi.cancelSlotBooking(orderId: orderId);
-      toast("✅ Slot cancelled. Now rebook.");
-      await _load();
-    } catch (e) {
-      toast("❌ Cancel failed: $e");
-    }
+    toast("✅ Slot cancelled. Now rebook.");
+    await _load();
+  } catch (e) {
+    toast("❌ Cancel failed: $e");
   }
+}
 
   Future<void> _deleteOrder(Map<String, dynamic> o) async {
     final orderId = _safe(o, ["orderId", "id"]);
@@ -268,7 +315,9 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
                                 _safe(o, ["createdAt", "created_at", "date"]);
 
                             final slotBooked = _isSlotBooked(o);
-
+print("ORDER=$orderId slotBooked=${o["slotBooked"]} slotId=${o["slotId"]} "
+      "slotDate=${o["slotDate"]} slotTime=${o["slotTime"]} slotPos=${o["slotPos"]} "
+      "mergeKey=${o["mergeKey"]} bookingSk=${o["bookingSk"]} mergedIntoOrderId=${o["mergedIntoOrderId"]}");
                             return Card(
                               margin: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 6),
@@ -277,39 +326,38 @@ String _normalizeRawLocId(Map<String, dynamic> o) {
                                 subtitle: Text(
                                   "Order: $orderId\nStatus: $status\nDate: $createdAt",
                                 ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      "₹${amount.toStringAsFixed(0)}",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-
-                                    if (!slotBooked) ...[
-                                      ElevatedButton(
-                                        onPressed: () => _openSlotBooking(o),
-                                        child: const Text("SLOT"),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.red),
-                                        onPressed: () => _deleteOrder(o),
-                                      ),
-                                    ] else ...[
-                                      ElevatedButton(
-                                        onPressed: null,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.grey,
-                                        ),
-                                        child: const Text("SLOT"),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                               trailing: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    Text(
+      "₹${amount.toStringAsFixed(0)}",
+      style: const TextStyle(fontWeight: FontWeight.bold),
+    ),
+    const SizedBox(width: 10),
+if (!slotBooked) ...[
+  ElevatedButton(
+    onPressed: () => _openSlotBooking(o),
+    child: const Text("SLOT"),
+  ),
+  const SizedBox(width: 6),
+  IconButton(
+    icon: const Icon(Icons.delete, color: Colors.red),
+    onPressed: () => _deleteOrder(o),
+  ),
+] else ...[
+  IconButton(
+    icon: const Icon(Icons.cancel, color: Colors.orange),
+    onPressed: () => _cancelBookedSlot(o),
+  ),
+  const SizedBox(width: 6),
+  ElevatedButton(
+    onPressed: null,
+    style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+    child: const Text("SLOT"),
+  ),
+]
+  ],
+),
                                 onTap: () {
                                   if (!slotBooked) {
                                     _openSlotBooking(o);

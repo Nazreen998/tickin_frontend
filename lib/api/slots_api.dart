@@ -67,6 +67,11 @@ loc = loc.replaceAll(RegExp(r'^(LOC#)+', caseSensitive: false), '');
   Future<Map<String, dynamic>> managerMoveMerge(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/merge/move", body: body);
 
+Future<Map<String, dynamic>> managerConfirmDayMerge(
+  Map<String, dynamic> body,
+) =>
+    client.post("${ApiConfig.slots}/merge/confirm-day", body: body);
+
   Future<Map<String, dynamic>> managerEditTime(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/edit-time", body: body);
 
@@ -94,5 +99,16 @@ loc = loc.replaceAll(RegExp(r'^(LOC#)+', caseSensitive: false), '');
     "date": date,
   });
 }
+      
+Future<Map<String, dynamic>> availableFullTimes({required String date}) {
+  return client.get("${ApiConfig.slots}/available-full-times", query: {
+    "date": date,
+  });
+}
+
+Future<Map<String, dynamic>> managerManualMergePickTime(Map<String, dynamic> body) {
+  return client.post("${ApiConfig.slots}/merge/manual-pick-time", body: body);
+}
+
     
 }
