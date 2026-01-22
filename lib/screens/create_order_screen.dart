@@ -54,20 +54,17 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   }
 
   // ---------- Helpers: Safe field getters ----------
-  String _distId(Map d) => (d["distributorCode"] ??
-          d["distributorId"] ??
-          d["code"] ??
-          d["sk"] ??
-          "")
-      .toString();
+  String _distId(Map d) =>
+      (d["distributorCode"] ?? d["distributorId"] ?? d["code"] ?? d["sk"] ?? "")
+          .toString();
 
   String _distName(Map d) =>
       (d["distributorName"] ?? d["agencyName"] ?? d["name"] ?? "").toString();
 
   String _prodId(Map p) => _normPid(
-        (p["productId"] ?? p["Product Id"] ?? p["id"] ?? p["code"] ?? "")
-            .toString(),
-      );
+    (p["productId"] ?? p["Product Id"] ?? p["id"] ?? p["code"] ?? "")
+        .toString(),
+  );
 
   String _prodName(Map p) =>
       (p["name"] ?? p["Product Name"] ?? p["productName"] ?? "").toString();
@@ -85,7 +82,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   int get totalQty => lines.fold(0, (sum, l) => sum + (l.qty > 0 ? l.qty : 0));
 
   num get grandTotal => lines.fold<num>(
-      0, (sum, l) => sum + (l.qty > 0 ? (l.qty * l.unitPrice) : 0));
+    0,
+    (sum, l) => sum + (l.qty > 0 ? (l.qty * l.unitPrice) : 0),
+  );
 
   int qtyForProduct(String productId) {
     final pid = _normPid(productId);
@@ -121,34 +120,55 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (distributors.isEmpty && products.isEmpty) {
+      TickinAppScope.of(context).tokenStore.getUserJson().then((uj) {
+        print("TOKENSTORE userJson => $uj");
+      });
       _loadHome();
     }
   }
 
   void toast(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(m),
-        backgroundColor: _ink,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(m), backgroundColor: _ink));
   }
 
   // ---------- API calls ----------
   Future<void> _loadHome() async {
     setState(() => loading = true);
     try {
-      final res = await TickinAppScope.of(context).salesApi.home();
+      final scope = TickinAppScope.of(context);
 
-      final d = (res["distributors"] ?? res["distributorDropdown"] ?? []) as List;
+      // ✅ 1) BEFORE calling home(): see what app has stored for this user
+      final userJson = await scope.tokenStore.getUserJson();
+      print("LOAD_HOME userJson => $userJson");
+
+      // ✅ 2) Call backend home()
+      final res = await scope.salesApi.home();
+
+      // ✅ 3) AFTER home(): compare backend role + count
+      print("LOAD_HOME backend role => ${res["role"]}");
+      print("LOAD_HOME distributorCount => ${res["distributorCount"]}");
+
+      final d =
+          (res["distributors"] ?? res["distributorDropdown"] ?? []) as List;
+      print("RAW d runtimeType => ${d.runtimeType}, len=${d.length}");
+      if (d.isNotEmpty) {
+        print("RAW d[0] => ${d[0]}");
+        print("RAW d[0] type => ${d[0].runtimeType}");
+      }
       final p = (res["products"] ?? []) as List;
 
       setState(() {
-        distributors =
-            d.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
-        products =
-            p.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        distributors = d
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
+        products = p
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
 
         if (selectedDistributorId != null &&
             !distributors.any((x) => _distId(x) == selectedDistributorId)) {
@@ -166,6 +186,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
           }
         }
       });
+      // ✅ UI received (state) logs
+      print("UI state distributors length => ${distributors.length}");
+      print("UI state distributors sample => ${distributors.take(2).toList()}");
     } catch (e) {
       toast(e.toString());
     } finally {
@@ -176,9 +199,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   Future<void> _fetchMonthlyGoals(String distributorCode) async {
     setState(() => goalsLoading = true);
     try {
-      final res = await TickinAppScope.of(context)
-          .goalsApi
-          .monthly(distributorCode: distributorCode);
+      final res = await TickinAppScope.of(
+        context,
+      ).goalsApi.monthly(distributorCode: distributorCode);
 
       final goals = (res["goals"] ?? []) as List;
 
@@ -236,10 +259,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         return;
       }
 
-      items.add({
-        "productId": _toBackendPid(l.productId!),
-        "qty": l.qty,
-      });
+      items.add({"productId": _toBackendPid(l.productId!), "qty": l.qty});
     }
 
     if (items.isEmpty) {
@@ -262,16 +282,24 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         if (userJson != null && userJson.isNotEmpty) {
           final u = jsonDecode(userJson) as Map<String, dynamic>;
 
-          role = (u["role"] ?? u["userRole"] ?? "SALES").toString().toUpperCase();
+          role = (u["role"] ?? u["userRole"] ?? "SALES")
+              .toString()
+              .toUpperCase();
 
           // convert role names for slot screen
-          if (role.contains("MANAGER")) role = "MANAGER";
-          else if (role.contains("SALES OFFICER")) role = "SALES OFFICER";
-          else if (role.contains("SALESMAN")) role = "SALESMAN";
-          else if (role.contains("DISTRIBUTOR")) role = "DISTRIBUTOR";
-          else role = "SALES";
+          if (role.contains("MANAGER"))
+            role = "MANAGER";
+          else if (role.contains("SALES OFFICER"))
+            role = "SALES OFFICER";
+          else if (role.contains("SALESMAN"))
+            role = "SALESMAN";
+          else if (role.contains("DISTRIBUTOR"))
+            role = "DISTRIBUTOR";
+          else
+            role = "SALES";
 
-          locationId = (u["locationId"] ?? u["pos"] ?? u["location"] ?? "").toString();
+          locationId = (u["locationId"] ?? u["pos"] ?? u["location"] ?? "")
+              .toString();
 
           final companyId = (u["companyId"] ?? "").toString();
           if (companyId.contains("#")) companyCode = companyId.split("#").last;
@@ -288,8 +316,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
       final orderId = (created["orderId"] ?? "").toString();
       final rawStatus = (created["status"] ?? "").toString().toUpperCase();
-      final statusText =
-          (rawStatus == "PENDING" || rawStatus == "DRAFT") ? "CONFIRMED" : rawStatus;
+      final statusText = (rawStatus == "PENDING" || rawStatus == "DRAFT")
+          ? "CONFIRMED"
+          : rawStatus;
 
       final amount = grandTotal.toDouble();
       final vehicleType = _vehicleTypeFromQty(totalQty);
@@ -306,7 +335,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         builder: (_) => AlertDialog(
           title: const Text("Order Created ✅"),
           content: Text(
-              "Order ID: $orderId\nStatus: $statusText\nAmount: ₹${amount.toStringAsFixed(2)}"),
+            "Order ID: $orderId\nStatus: $statusText\nAmount: ₹${amount.toStringAsFixed(2)}",
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -336,7 +366,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
             builder: (_) => SlotBookingScreen(
               role: role,
               distributorCode: selectedDistributorId!,
-              distributorName: selectedDistributorName ?? selectedDistributorId!,
+              distributorName:
+                  selectedDistributorName ?? selectedDistributorId!,
               orderId: orderId,
               amount: amount,
             ),
@@ -359,30 +390,30 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   void _removeLine(int idx) => setState(() => lines.removeAt(idx));
 
   Widget _ellipsisText(String s) => Text(
-        s,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: _ink),
-      );
+    s,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(color: _ink),
+  );
 
   InputDecoration _inputDec(String label) => InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: _ink),
-        filled: true,
-        fillColor: _bg,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _brand, width: 1.4),
-        ),
-      );
+    labelText: label,
+    labelStyle: const TextStyle(color: _ink),
+    filled: true,
+    fillColor: _bg,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: _border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: _border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: _brand, width: 1.4),
+    ),
+  );
 
   Widget _goalPreviewCard() {
     if (selectedDistributorId == null) return const SizedBox.shrink();
@@ -394,8 +425,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       );
     }
 
-    final selectedPids =
-        lines.map((l) => l.productId).whereType<String>().toSet().toList();
+    final selectedPids = lines
+        .map((l) => l.productId)
+        .whereType<String>()
+        .toSet()
+        .toList();
     if (selectedPids.isEmpty) return const SizedBox.shrink();
 
     return Card(
@@ -426,7 +460,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _ellipsisText("$pid ${name.isEmpty ? "" : "- $name"}"),
+                      child: _ellipsisText(
+                        "$pid ${name.isEmpty ? "" : "- $name"}",
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -449,6 +485,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   // ---------- Build ----------
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      "BUILD CreateOrderScreen: distributors=${distributors.length}, products=${products.length}",
+    );
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -480,15 +520,14 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
             },
           ),
           IconButton(
-  icon: const Icon(Icons.list_alt, color: _ink),
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
-    );
-  },
-),
-
+            icon: const Icon(Icons.list_alt, color: _ink),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+              );
+            },
+          ),
         ],
       ),
       body: loading
@@ -499,8 +538,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 DropdownButtonFormField<String>(
                   isExpanded: true,
                   dropdownColor: _bg,
-                  value: (selectedDistributorId != null &&
-                          distributors.any((d) => _distId(d) == selectedDistributorId))
+                  value:
+                      (selectedDistributorId != null &&
+                          distributors.any(
+                            (d) => _distId(d) == selectedDistributorId,
+                          ))
                       ? selectedDistributorId
                       : null,
                   decoration: _inputDec("Distributor"),
@@ -515,11 +557,14 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                   }).toList(),
                   onChanged: (val) async {
                     if (val == null) return;
+                    print("UI selected distributor id => $val");
 
                     final picked = distributors.firstWhere(
                       (x) => _distId(x) == val,
                       orElse: () => <String, dynamic>{},
                     );
+                    print("UI picked distributor map => $picked");
+                    print("UI picked name => ${_distName(picked)}");
 
                     setState(() {
                       selectedDistributorId = val;
@@ -555,9 +600,12 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           DropdownButtonFormField<String>(
                             isExpanded: true,
                             dropdownColor: _bg,
-                            value: (l.productId != null &&
+                            value:
+                                (l.productId != null &&
                                     products.any(
-                                        (p) => _prodId(p) == _normPid(l.productId!)))
+                                      (p) =>
+                                          _prodId(p) == _normPid(l.productId!),
+                                    ))
                                 ? l.productId
                                 : null,
                             decoration: _inputDec("Product"),
@@ -576,8 +624,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
                               setState(() {
                                 l.productId = val; // normalized
-                                l.unitPrice =
-                                    prod == null ? 0 : _prodPrice(prod);
+                                l.unitPrice = prod == null
+                                    ? 0
+                                    : _prodPrice(prod);
                               });
                             },
                           ),
@@ -586,13 +635,15 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                             children: [
                               Expanded(
                                 child: TextFormField(
-                                  initialValue:
-                                      l.qty == 0 ? "" : l.qty.toString(),
+                                  initialValue: l.qty == 0
+                                      ? ""
+                                      : l.qty.toString(),
                                   keyboardType: TextInputType.number,
                                   style: const TextStyle(color: _ink),
                                   decoration: _inputDec("Qty").copyWith(
-                                    errorText:
-                                        exceeded ? "Goal exceeded" : null,
+                                    errorText: exceeded
+                                        ? "Goal exceeded"
+                                        : null,
                                   ),
                                   onChanged: (v) {
                                     final n = int.tryParse(v.trim()) ?? 0;
@@ -636,16 +687,19 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                                 label: const Text(
                                   "Add",
                                   style: TextStyle(
-                                      color: _brand,
-                                      fontWeight: FontWeight.w700),
+                                    color: _brand,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                               const Spacer(),
                               if (lines.length > 1)
                                 TextButton.icon(
                                   onPressed: () => _removeLine(i),
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
                                   label: const Text(
                                     "Remove",
                                     style: TextStyle(
