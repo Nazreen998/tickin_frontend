@@ -17,8 +17,9 @@ class HttpClient {
   HttpClient(this.tokenStore);
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
-    final u = Uri.parse("${ApiConfig.baseUrl}$path")
-        .replace(queryParameters: query);
+    final u = Uri.parse(
+      "${ApiConfig.baseUrl}$path",
+    ).replace(queryParameters: query);
     print("🌐 HTTP => $u");
     return u;
   }
@@ -27,9 +28,7 @@ class HttpClient {
     final token = await tokenStore.getToken();
     print("🔐 TOKEN => ${token == null ? "NULL" : token.substring(0, 25)}");
 
-    final headers = <String, String>{
-      "Content-Type": "application/json",
-    };
+    final headers = <String, String>{"Content-Type": "application/json"};
 
     if (token != null && token.isNotEmpty) {
       headers["Authorization"] = "Bearer $token";
@@ -38,21 +37,29 @@ class HttpClient {
     return headers;
   }
 
-  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) async {
+  Future<Map<String, dynamic>> get(
+    String path, {
+    Map<String, dynamic>? query,
+  }) async {
     final res = await http.get(_uri(path, query), headers: await _headers());
     return _handle(res);
   }
 
-  Future<Map<String, dynamic>> post(String path, {Map<String, dynamic>? body}) async {
-    final res = await http.post(
-      _uri(path),
-      headers: await _headers(),
-      body: jsonEncode(body ?? {}),
-    );
+  Future<Map<String, dynamic>> post(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final h = await _headers();
+    final u = _uri(path);
+
+    final res = await http.post(u, headers: h, body: jsonEncode(body ?? {}));
     return _handle(res);
   }
 
-  Future<Map<String, dynamic>> patch(String path, {Map<String, dynamic>? body}) async {
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
     final res = await http.patch(
       _uri(path),
       headers: await _headers(),
@@ -72,9 +79,6 @@ class HttpClient {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return body is Map<String, dynamic> ? body : {"data": body};
     }
-
-    print("❌ HTTP ERROR ${res.statusCode} => ${res.request?.url}");
-    print("❌ BODY => ${res.body}");
 
     final msg = (body is Map)
         ? (body["message"] ?? body["error"] ?? "Request failed")

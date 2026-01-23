@@ -30,7 +30,10 @@ void applyLoginToSession(Map<String, dynamic> user) {
     AuthSession.role = UserRole.master;
   } else if (roleStr == "MANAGER") {
     AuthSession.role = UserRole.manager;
-  } else if (roleStr == "SALES OFFICER" || roleStr == "SALES_OFFICER") {
+  } else if (roleStr == "SALES OFFICER" ||
+      roleStr == "SALES_OFFICER" ||
+      roleStr == "SALES OFFICER VNR" ||
+      roleStr == "SALES_OFFICER_VNR") {
     AuthSession.role = UserRole.salesOfficer;
   } else {
     AuthSession.role = UserRole.manager;

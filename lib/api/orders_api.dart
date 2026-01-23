@@ -89,42 +89,57 @@ class OrdersApi {
     required List<Map<String, dynamic>> items,
     String? companyCode,
   }) async {
-    final created = await createOrder(
-      distributorId: distributorId,
-      distributorName: distributorName,
-      items: items,
-    );
+    // ✅ Debug: input snapshot
 
-    if (created["ok"] == false) {
-      throw ApiException(created["message"] ?? "Create order failed");
-    }
-
-    final orderId = (created["orderId"] ?? "").toString();
-    final status = (created["status"] ?? "").toString().toUpperCase();
-
-    if (orderId.isEmpty) throw ApiException("orderId missing");
-
-    if (status == "DRAFT") {
-      final confirmed = await confirmDraft(orderId);
-      if (confirmed["ok"] == false) {
-        throw ApiException(confirmed["message"] ?? "Confirm draft failed");
-      }
-      return {...created, "status": "CONFIRMED"};
-    }
-
-    if (status == "PENDING") {
-      if (companyCode == null || companyCode.isEmpty) {
-        throw ApiException("companyCode missing");
-      }
-      final confirmed = await confirmOrder(
-        orderId: orderId,
-        companyCode: companyCode,
+    try {
+      final created = await createOrder(
+        distributorId: distributorId,
+        distributorName: distributorName,
+        items: items,
       );
-      if (confirmed["ok"] == false) throw ApiException("Confirm failed");
-      return {...created, "status": "CONFIRMED"};
-    }
 
-    return created;
+      if (created["ok"] == false) {
+        throw ApiException(created["message"] ?? "Create order failed");
+      }
+
+      final orderId = (created["orderId"] ?? "").toString();
+      final status = (created["status"] ?? "").toString().toUpperCase();
+
+      if (orderId.isEmpty) {
+        throw ApiException("orderId missing");
+      }
+
+      if (status == "DRAFT") {
+        final confirmed = await confirmDraft(orderId);
+
+        if (confirmed["ok"] == false) {
+          throw ApiException(confirmed["message"] ?? "Confirm draft failed");
+        }
+
+        return {...created, "status": "CONFIRMED"};
+      }
+
+      if (status == "PENDING") {
+        if (companyCode == null || companyCode.isEmpty) {
+          throw ApiException("companyCode missing");
+        }
+
+        final confirmed = await confirmOrder(
+          orderId: orderId,
+          companyCode: companyCode,
+        );
+
+        if (confirmed["ok"] == false) {
+          throw ApiException("Confirm failed");
+        }
+
+        return {...created, "status": "CONFIRMED"};
+      }
+
+      return created;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   /// 🚚 Driver - Assigned orders

@@ -15,7 +15,14 @@ import 'manager_orders_with_slot_screen.dart';
 /// =======================================================
 /// 🔥 ROLE ENUM (NEW – ACTIVE)
 /// =======================================================
-enum UserRole { master, manager, driver, distributor, salesOfficer }
+enum UserRole {
+  master,
+  manager,
+  driver,
+  distributor,
+  salesOfficer,
+  salesOfficerVnr,
+}
 
 /// ✅ CHANGED: StatelessWidget -> StatefulWidget (to load counts)
 class ManagerDashboardScreen extends StatefulWidget {
@@ -343,6 +350,16 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
             );
           }),
           _cardWithBadge(context, Icons.track_changes, "Tracking", () {}),
+        ];
+      // ================= SALES OFFICER VNR =================
+      case UserRole.salesOfficerVnr:
+        return [
+          _cardWithBadge(context, Icons.add_box_rounded, "Create Order", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
+            );
+          }),
         ];
     }
   }
