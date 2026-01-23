@@ -120,9 +120,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (distributors.isEmpty && products.isEmpty) {
-      TickinAppScope.of(context).tokenStore.getUserJson().then((uj) {
-        print("TOKENSTORE userJson => $uj");
-      });
+      TickinAppScope.of(context).tokenStore.getUserJson().then((uj) {});
       _loadHome();
     }
   }
@@ -142,22 +140,13 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
       // ✅ 1) BEFORE calling home(): see what app has stored for this user
       final userJson = await scope.tokenStore.getUserJson();
-      print("LOAD_HOME userJson => $userJson");
 
       // ✅ 2) Call backend home()
       final res = await scope.salesApi.home();
 
-      // ✅ 3) AFTER home(): compare backend role + count
-      print("LOAD_HOME backend role => ${res["role"]}");
-      print("LOAD_HOME distributorCount => ${res["distributorCount"]}");
-
       final d =
           (res["distributors"] ?? res["distributorDropdown"] ?? []) as List;
-      print("RAW d runtimeType => ${d.runtimeType}, len=${d.length}");
-      if (d.isNotEmpty) {
-        print("RAW d[0] => ${d[0]}");
-        print("RAW d[0] type => ${d[0].runtimeType}");
-      }
+
       final p = (res["products"] ?? []) as List;
 
       setState(() {
@@ -186,9 +175,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
           }
         }
       });
-      // ✅ UI received (state) logs
-      print("UI state distributors length => ${distributors.length}");
-      print("UI state distributors sample => ${distributors.take(2).toList()}");
     } catch (e) {
       toast(e.toString());
     } finally {
@@ -502,10 +488,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   // ---------- Build ----------
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      "BUILD CreateOrderScreen: distributors=${distributors.length}, products=${products.length}",
-    );
-
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -574,14 +556,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                   }).toList(),
                   onChanged: (val) async {
                     if (val == null) return;
-                    print("UI selected distributor id => $val");
 
                     final picked = distributors.firstWhere(
                       (x) => _distId(x) == val,
                       orElse: () => <String, dynamic>{},
                     );
-                    print("UI picked distributor map => $picked");
-                    print("UI picked name => ${_distName(picked)}");
 
                     setState(() {
                       selectedDistributorId = val;

@@ -24,19 +24,6 @@ class HttpClient {
     return u;
   }
 
-  Map<String, dynamic> _decodeJwt(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) return {};
-      final payload = base64Url.normalize(parts[1]);
-      final decoded = utf8.decode(base64Url.decode(payload));
-      final map = jsonDecode(decoded);
-      return map is Map<String, dynamic> ? map : {};
-    } catch (_) {
-      return {};
-    }
-  }
-
   Future<Map<String, String>> _headers() async {
     final token = await tokenStore.getToken();
     print("🔐 TOKEN => ${token == null ? "NULL" : token.substring(0, 25)}");
@@ -44,13 +31,6 @@ class HttpClient {
     final headers = <String, String>{"Content-Type": "application/json"};
 
     if (token != null && token.isNotEmpty) {
-      final p = _decodeJwt(token);
-      print("🪪 JWT role => ${p["role"]}");
-      print("🪪 JWT mobile => ${p["mobile"]}");
-      print("🪪 JWT distributorCode => ${p["distributorCode"]}");
-      print("🪪 JWT allowedDistributors => ${p["allowedDistributors"]}");
-      print("🪪 JWT companyId => ${p["companyId"]}");
-
       headers["Authorization"] = "Bearer $token";
     }
 
@@ -71,10 +51,6 @@ class HttpClient {
   }) async {
     final h = await _headers();
     final u = _uri(path);
-
-    print("➡️ POST $u");
-    print("➡️ Headers hasAuth=${h.containsKey("Authorization")}");
-    print("➡️ Body => ${jsonEncode(body ?? {})}");
 
     final res = await http.post(u, headers: h, body: jsonEncode(body ?? {}));
     return _handle(res);
@@ -103,9 +79,6 @@ class HttpClient {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return body is Map<String, dynamic> ? body : {"data": body};
     }
-
-    print("❌ HTTP ERROR ${res.statusCode} => ${res.request?.url}");
-    print("❌ BODY => ${res.body}");
 
     final msg = (body is Map)
         ? (body["message"] ?? body["error"] ?? "Request failed")
