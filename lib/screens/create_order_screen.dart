@@ -289,6 +289,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
           // convert role names for slot screen
           if (role.contains("MANAGER"))
             role = "MANAGER";
+          else if (role.contains("SALES_OFFICER_VNR") ||
+              role.contains("SALES OFFICER VNR")) {
+            role = "SALES_OFFICER_VNR";
+          } // ✅ keep VNR
           else if (role.contains("SALES OFFICER"))
             role = "SALES OFFICER";
           else if (role.contains("SALESMAN"))
@@ -313,7 +317,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         items: items,
         companyCode: companyCode,
       );
-
+      final bool isSalesOfficerVnr = role == "SALES_OFFICER_VNR";
       final orderId = (created["orderId"] ?? "").toString();
       final rawStatus = (created["status"] ?? "").toString().toUpperCase();
       final statusText = (rawStatus == "PENDING" || rawStatus == "DRAFT")
@@ -332,21 +336,34 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       // ✅ Order created dialog
       final goSlot = await showDialog<bool>(
         context: context,
+        barrierDismissible:
+            isSalesOfficerVnr, // ✅ outside tap close allowed only for VNR
         builder: (_) => AlertDialog(
-          title: const Text("Order Created ✅"),
+          title: Row(
+            children: [
+              const Expanded(child: Text("Order Created ✅")),
+              if (isSalesOfficerVnr)
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context, false),
+                ),
+            ],
+          ),
           content: Text(
             "Order ID: $orderId\nStatus: $statusText\nAmount: ₹${amount.toStringAsFixed(2)}",
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Stay Here"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Go to Slot Booking"),
-            ),
-          ],
+          actions: isSalesOfficerVnr
+              ? const [] // ✅ no buttons
+              : [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("Stay Here"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("Go to Slot Booking"),
+                  ),
+                ],
         ),
       );
 
