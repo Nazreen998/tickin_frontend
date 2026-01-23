@@ -304,7 +304,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         companyCode: companyCode,
       );
       final bool isSalesOfficerVnr = role == "SALES_OFFICER_VNR";
-      final orderId = (created["orderId"] ?? "").toString();
+      String orderId = (created["orderId"] ?? "").toString().trim();
+      if (orderId.isEmpty) {
+        final pk = (created["pk"] ?? "").toString().trim();
+        if (pk.startsWith("ORDER#")) orderId = pk.substring("ORDER#".length);
+      }
       final rawStatus = (created["status"] ?? "").toString().toUpperCase();
       final statusText = (rawStatus == "PENDING" || rawStatus == "DRAFT")
           ? "CONFIRMED"

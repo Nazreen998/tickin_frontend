@@ -7,6 +7,7 @@ import '../app_scope.dart';
 import 'order_details_screen.dart';
 import 'slots/slot_booking_screen.dart';
 import 'order_unified_tracking_screen.dart';
+
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
 
@@ -52,6 +53,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   bool get isManager => role.contains("MANAGER") || role.contains("MASTER");
+  bool get isSalesOfficerVnr =>
+      role.toUpperCase().trim() == "SALES_OFFICER_VNR" ||
+      role.toUpperCase().trim() == "SALES OFFICER VNR";
 
   void toast(String m) {
     if (!mounted) return;
@@ -108,29 +112,31 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     if (v is num) return v;
     return num.tryParse(v.toString()) ?? 0;
   }
-//dublicates
-bool _isSlotBooked(Map<String, dynamic> o) {
-  // 1) slotBooked flag
-  final v = o["slotBooked"];
-  final slotBooked =
-      (v is bool && v == true) ||
-      (v is num && v == 1) ||
-      (v ?? "").toString().trim().toLowerCase() == "true" ||
-      (v ?? "").toString().trim() == "1";
 
-  // 2) slotId presence (HALF also has slotId)
-  final slotId = (o["slotId"] ?? "").toString().trim();
+  //dublicates
+  bool _isSlotBooked(Map<String, dynamic> o) {
+    // 1) slotBooked flag
+    final v = o["slotBooked"];
+    final slotBooked =
+        (v is bool && v == true) ||
+        (v is num && v == 1) ||
+        (v ?? "").toString().trim().toLowerCase() == "true" ||
+        (v ?? "").toString().trim() == "1";
 
-  // 3) mergedIntoOrderId presence (merged half orders)
-  final mergedInto = (o["mergedIntoOrderId"] ?? "").toString().trim();
+    // 2) slotId presence (HALF also has slotId)
+    final slotId = (o["slotId"] ?? "").toString().trim();
 
-  // ✅ final decision
-  if (slotBooked) return true;
-  if (slotId.isNotEmpty) return true;
-  if (mergedInto.isNotEmpty) return true;
+    // 3) mergedIntoOrderId presence (merged half orders)
+    final mergedInto = (o["mergedIntoOrderId"] ?? "").toString().trim();
 
-  return false;
-}
+    // ✅ final decision
+    if (slotBooked) return true;
+    if (slotId.isNotEmpty) return true;
+    if (mergedInto.isNotEmpty) return true;
+
+    return false;
+  }
+
   /// ✅ Normalize to LOC# format (auto merge compatibility)
   String _normalizeRawLocId(Map<String, dynamic> o) {
     String raw = (o["locationId"] ?? "").toString().trim();
@@ -244,9 +250,11 @@ bool _isSlotBooked(Map<String, dynamic> o) {
                   o["amount"] ?? o["totalAmount"] ?? o["grandTotal"],
                 );
                 final slotBooked = _isSlotBooked(o);
-print("ORDER=$orderId slotBooked=${o["slotBooked"]} slotId=${o["slotId"]} "
-      "slotDate=${o["slotDate"]} slotTime=${o["slotTime"]} slotPos=${o["slotPos"]} "
-      "mergeKey=${o["mergeKey"]} bookingSk=${o["bookingSk"]} mergedIntoOrderId=${o["mergedIntoOrderId"]}");
+                print(
+                  "ORDER=$orderId slotBooked=${o["slotBooked"]} slotId=${o["slotId"]} "
+                  "slotDate=${o["slotDate"]} slotTime=${o["slotTime"]} slotPos=${o["slotPos"]} "
+                  "mergeKey=${o["mergeKey"]} bookingSk=${o["bookingSk"]} mergedIntoOrderId=${o["mergedIntoOrderId"]}",
+                );
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -265,24 +273,30 @@ print("ORDER=$orderId slotBooked=${o["slotBooked"]} slotId=${o["slotId"]} "
                         const SizedBox(width: 10),
 
                         /// ✅ SLOT always visible but disabled if booked
-                        ElevatedButton(
-                          onPressed: slotBooked
-                              ? null
-                              : () => _openSlotBooking(o),
-                          child: const Text("SLOT"),
-                        ),
+                        /// ✅ SLOT hidden for SALES_OFFICER_VNR
+                        if (!isSalesOfficerVnr) ...[
+                          ElevatedButton(
+                            onPressed: slotBooked
+                                ? null
+                                : () => _openSlotBooking(o),
+                            child: const Text("SLOT"),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                         const SizedBox(width: 6),
-ElevatedButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrderUnifiedTrackingScreen(orderId: orderId),
-          ),
-        );
-      },
-      child: const Text("TRACK"),
-    ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderUnifiedTrackingScreen(
+                                  orderId: orderId,
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text("TRACK"),
+                        ),
 
                         /// ✅ DELETE always visible but disabled if booked
                         IconButton(
@@ -295,12 +309,26 @@ ElevatedButton(
                       ],
                     ),
                     onTap: () {
+                      // ✅ SALES_OFFICER_VNR -> Order Details
+                      if (isSalesOfficerVnr) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                OrderDetailsScreen(orderId: orderId),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // existing behavior for others
                       if (slotBooked) {
                         toast("✅ Slot already booked. SLOT & DELETE disabled.");
                         return;
                       }
                       _openSlotBooking(o);
                     },
+
                     onLongPress: () {
                       Navigator.push(
                         context,

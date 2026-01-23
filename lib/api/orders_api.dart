@@ -102,7 +102,7 @@ class OrdersApi {
         throw ApiException(created["message"] ?? "Create order failed");
       }
 
-      final orderId = (created["printorderId"] ?? "").toString();
+      final orderId = (created["orderId"] ?? "").toString();
       final status = (created["status"] ?? "").toString().toUpperCase();
 
       if (orderId.isEmpty) {

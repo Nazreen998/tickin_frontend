@@ -24,7 +24,7 @@ UserRole mapRole(String role) {
     case "SALES_OFFICER":
       return UserRole.salesOfficer;
     case "SALES_OFFICER_VNR":
-      return UserRole.salesOfficer;
+      return UserRole.salesOfficerVnr;
     default:
       return UserRole.salesOfficer;
   }
