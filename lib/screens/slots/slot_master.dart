@@ -1,6 +1,6 @@
 enum SlotStatus { available, booked, closed }
 
-class SlotItem {
+class MasterSlot {
   final int slotId;
   final String date;
   final String session; // Morning / Afternoon / Evening / Night
@@ -13,7 +13,7 @@ class SlotItem {
 
   List<SlotOrder> orders;
 
-  SlotItem({
+  MasterSlot({
     required this.slotId,
     required this.date,
     required this.session,
@@ -24,8 +24,7 @@ class SlotItem {
     List<SlotOrder>? orders,
   }) : orders = orders ?? [];
 
-  double get usedAmount =>
-      orders.fold(0, (sum, o) => sum + o.amount);
+  double get usedAmount => orders.fold(0, (sum, o) => sum + o.amount);
 
   bool get isFull => usedAmount >= thresholdAmount;
 }

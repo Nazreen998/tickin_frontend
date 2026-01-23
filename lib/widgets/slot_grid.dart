@@ -1,4 +1,4 @@
-// ignore_for_file: dead_code, unnecessary_null_comparison, unnecessary_to_list_in_spreads
+// ignore_for_file: dead_code, unnecessary_null_comparison, unnecessary_to_list_in_spreads, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import '../models/slot_models.dart';
@@ -38,9 +38,9 @@ class SlotGrid extends StatelessWidget {
     /// ✅ Remove duplicates by key (FULL pos, MERGE mergeKey)
     final map = <String, SlotItem>{};
     for (final s in slots) {
-      final key = s.isMerge
-          ? "MERGE#${s.mergeKey ?? s.sk}#${s.time}"
-          : "FULL#${s.time}#${s.pos ?? ''}";
+    final key = s.isMerge
+  ? "MERGE#${s.mergeKey ?? s.sk}"   // 🔥 REMOVE time
+  : "FULL#${s.time}#${s.pos ?? ''}";
       map[key] = s;
     }
 

@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unrelated_type_equality_checks, unused_local_variable
+// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unrelated_type_equality_checks, unused_local_variable, unused_element
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -138,22 +138,34 @@ List<SlotItem> get sessionFullSlots {
   // times order already correct (09:00, 09:30, ...)
   return result;
 }
-
 List<SlotItem> get sessionMergeSlots {
-  final times = _timesForSession(selectedSession);
+  // 🔥 BLINK MERGES (DAY LEVEL) — show only once
+  final blinkMerges = allSlots.where((s) {
+    return s.isMerge &&
+           s.blink == true &&
+           (s.tripStatus ?? "").toUpperCase() != "FULL";
+  }).toList();
 
+  if (blinkMerges.isNotEmpty) {
+    // one tile per mergeKey
+    final map = <String, SlotItem>{};
+    for (final s in blinkMerges) {
+      map[s.mergeKey ?? s.sk] = s;
+    }
+    return map.values.toList();
+  }
+
+  // fallback: normal (old) behaviour
+  final times = _timesForSession(selectedSession);
   return allSlots.where((s) {
     if (!s.isMerge) return false;
-
     final t = SlotItem.normalizeTime(s.time);
     if (!times.contains(t)) return false;
-
     if ((s.tripStatus ?? "").toUpperCase() == "FULL") return false;
-    if ((s.bookingCount ?? 0) <= 0 && (s.totalAmount ?? 0) <= 0) return false;
-
     return true;
   }).toList();
 }
+
   /// ✅ VERY IMPORTANT FIX: flatten nested `slots: [fullSlots, mergeSlots]` :contentReference[oaicite:10]{index=10}
   Future<void> _loadGrid() async {
     setState(() => loading = true);

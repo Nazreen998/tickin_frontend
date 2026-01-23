@@ -9,14 +9,14 @@ const Map<String, List<String>> sessionTimes = {
   "Night": ["18:00", "18:30", "19:00", "19:30"],
 };
 
-List<SlotItem> generateSlots(String date) {
+List<MasterSlot> generateSlots(String date) {
   int id = 3001;
-  final slots = <SlotItem>[];
+  final slots = <MasterSlot>[];
 
   for (final s in sessions) {
     for (final t in sessionTimes[s]!) {
       slots.add(
-        SlotItem(
+        MasterSlot(
           slotId: id++,
           date: date,
           session: s,

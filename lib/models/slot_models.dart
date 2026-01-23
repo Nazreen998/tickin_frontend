@@ -52,7 +52,7 @@ class SlotItem {
   final String? locationId;
   final String? companyCode;
   final String? date;
-  
+
   final List<Map<String, dynamic>> participants;
   final double? distanceKm;
   final int? bookingCount;
@@ -83,12 +83,21 @@ class SlotItem {
     this.distanceKm,
     this.bookingCount,
   });
-String get displayTime {
-  if (isMerge) return "";
-  return normalizeTime(time);
-}
 
-  /// ✅ FIX: normalizeTime MUST remove seconds too
+  // ------------------------
+  // ✅ BASIC GETTERS
+  // ------------------------
+  bool get isFull => vehicleType.toUpperCase() == "FULL";
+  bool get isMerge => sk.startsWith("MERGE_SLOT#");
+
+  String get displayTime {
+    if (isMerge) return "";
+    return normalizeTime(time);
+  }
+
+  // ------------------------
+  // ✅ HELPERS
+  // ------------------------
   static String normalizeTime(String t) {
     final x = t.trim();
     if (!x.contains(":")) return x;
@@ -96,18 +105,37 @@ String get displayTime {
     final parts = x.split(":");
     final hh = parts[0].padLeft(2, "0");
     final mm = (parts.length > 1 ? parts[1] : "00").padLeft(2, "0");
-
-    // ✅ ignore seconds if present (12:30:00 -> 12:30)
     return "$hh:$mm";
   }
 
+  static String? _cleanMergeKey(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+
+    final up = s.toUpperCase();
+    if (up.contains("NAN") || up.endsWith("#NULL") || up == "NULL") return null;
+    return s;
+  }
+
+  static String? _cleanStr(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty || s.toLowerCase() == "null" || s.toUpperCase() == "NAN") {
+      return null;
+    }
+    return s;
+  }
+
+  // ------------------------
+  // ✅ FROM MAP
+  // ------------------------
   factory SlotItem.fromMap(Map<String, dynamic> m) {
     final pk = m["pk"]?.toString() ?? "";
     final sk = m["sk"]?.toString() ?? "";
 
     String? companyCode;
     String? date;
-
     try {
       final parts = pk.split("#");
       final cIdx = parts.indexOf("COMPANY");
@@ -119,11 +147,12 @@ String get displayTime {
     final rawLat = m["lat"];
     final rawLng = m["lng"];
 
-    final rawTime = (m["time"] ?? m["slotTime"] ?? m["slot_time"])?.toString() ?? "";
+    final rawTime =
+        (m["time"] ?? m["slotTime"] ?? m["slot_time"])?.toString() ?? "";
     var parsedTime = normalizeTime(rawTime);
 
-    // ✅ MERGE SLOT time fallback
-    if ((parsedTime.isEmpty || parsedTime == "00:00") && sk.startsWith("MERGE_SLOT#")) {
+    if ((parsedTime.isEmpty || parsedTime == "00:00") &&
+        sk.startsWith("MERGE_SLOT#")) {
       try {
         final parts = sk.split("#");
         if (parts.length > 1) parsedTime = normalizeTime(parts[1]);
@@ -132,47 +161,50 @@ String get displayTime {
 
     final rawStatus = (m["status"] ?? "AVAILABLE").toString();
 
-    // ✅ participants safe parse
-    final rawP = m["participants"];
     final participants = <Map<String, dynamic>>[];
-    if (rawP is List) {
-      for (final p in rawP) {
+    if (m["participants"] is List) {
+      for (final p in m["participants"]) {
         if (p is Map) participants.add(Map<String, dynamic>.from(p));
       }
     }
 
     double? totalAmount;
-    if (m["totalAmount"] is num) totalAmount = (m["totalAmount"] as num).toDouble();
-    if (totalAmount == null && m["amount"] is num) totalAmount = (m["amount"] as num).toDouble();
+    if (m["totalAmount"] is num) {
+      totalAmount = (m["totalAmount"] as num).toDouble();
+    }
 
     double? amount;
-    if (m["amount"] is num) amount = (m["amount"] as num).toDouble();
-    else amount = double.tryParse("${m["amount"]}");
+    if (m["amount"] is num) {
+      amount = (m["amount"] as num).toDouble();
+    }
 
-    // ✅ FIX: vehicleType safe normalize
-    final vt = (m["vehicleType"] ?? "FULL").toString().toUpperCase().trim();
-    final finalVehicleType = (vt == "HALF") ? "HALF" : "FULL";
+    final vt = (m["vehicleType"] ?? "FULL").toString().toUpperCase();
+    final finalVehicleType = vt == "HALF" ? "HALF" : "FULL";
+
+    final cleanedMergeKey = _cleanMergeKey(m["mergeKey"]);
+    final locId = _cleanStr(m["locationId"]);
+    final finalMergeKey = cleanedMergeKey ?? (locId != null ? "LOC#$locId" : null);
 
     return SlotItem(
       pk: pk,
       sk: sk,
       time: parsedTime,
       vehicleType: finalVehicleType,
-      pos: m["pos"]?.toString(),
+      pos: _cleanStr(m["pos"]),
       status: rawStatus,
-      orderId: m["orderId"]?.toString(),
-      mergeKey: m["mergeKey"]?.toString(),
+      orderId: _cleanStr(m["orderId"]),
+      mergeKey: finalMergeKey,
       totalAmount: totalAmount,
       amount: amount,
-      tripStatus: m["tripStatus"]?.toString() ?? "PARTIAL",
+      tripStatus: _cleanStr(m["tripStatus"]) ?? "PARTIAL",
       lat: (rawLat is num) ? rawLat.toDouble() : double.tryParse("$rawLat"),
       lng: (rawLng is num) ? rawLng.toDouble() : double.tryParse("$rawLng"),
       blink: m["blink"] == true,
-      userId: m["userId"]?.toString(),
-      distributorName: m["distributorName"]?.toString(),
-      distributorCode: m["distributorCode"]?.toString(),
-      bookedBy: m["bookedBy"]?.toString(),
-      locationId: m["locationId"]?.toString(),
+      userId: _cleanStr(m["userId"]),
+      distributorName: _cleanStr(m["distributorName"]),
+      distributorCode: _cleanStr(m["distributorCode"]),
+      bookedBy: _cleanStr(m["bookedBy"]),
+      locationId: locId,
       companyCode: companyCode,
       date: date,
       participants: participants,
@@ -185,9 +217,9 @@ String get displayTime {
     );
   }
 
-  bool get isFull => vehicleType.toUpperCase() == "FULL";
-  bool get isMerge => sk.startsWith("MERGE_SLOT#");
-
+  // ------------------------
+  // ✅ STATUS HELPERS
+  // ------------------------
   String get normalizedStatus {
     final s = status.toUpperCase();
     if (s == "CONFIRMED") return "BOOKED";
@@ -197,51 +229,87 @@ String get displayTime {
   bool get isBooked => normalizedStatus == "BOOKED";
   bool get isAvailable => normalizedStatus == "AVAILABLE";
 
-  /// ✅ FIX: sessionLabel now handles seconds and unexpected formats
-String get sessionLabel {
-  if (isMerge) return "";
-  final t = normalizeTime(time);
+  String get sessionLabel {
+    if (isMerge) return "";
+    final t = normalizeTime(time);
 
-  for (final e in sessionTimes.entries) {
-    if (e.value.contains(t)) return e.key;
+    for (final e in sessionTimes.entries) {
+      if (e.value.contains(t)) return e.key;
+    }
+
+    final h = int.tryParse(t.split(":")[0]) ?? 0;
+    if (h >= 9 && h < 12) return "Morning";
+    if (h >= 12 && h < 15) return "Afternoon";
+    if (h >= 15 && h < 18) return "Evening";
+    return "Night";
   }
 
-  // fallback
-  final h = int.tryParse(t.split(":")[0]) ?? 0;
-  if (h >= 9 && h < 12) return "Morning";
-  if (h >= 12 && h < 15) return "Afternoon";
-  if (h >= 15 && h < 18) return "Evening";
-  return "Night";
-}
+  int get slotIdNum {
+    int base;
+    switch (sessionLabel) {
+      case "Morning":
+        base = 3000;
+        break;
+      case "Afternoon":
+        base = 3010;
+        break;
+      case "Evening":
+        base = 3020;
+        break;
+      case "Night":
+        base = 3030;
+        break;
+      default:
+        base = 3000;
+    }
 
-int get slotIdNum {
-  // ONLY 4 slots per session → A B C D
-  int base;
+    int posOffset = 0;
+    final p = (pos ?? "A").toUpperCase();
+    if (p == "B") posOffset = 1;
+    else if (p == "C") posOffset = 2;
+    else if (p == "D") posOffset = 3;
 
-  switch (sessionLabel) {
-    case "Morning":
-      base = 3000;
-      break;
-    case "Afternoon":
-      base = 3010;
-      break;
-    case "Evening":
-      base = 3020;
-      break;
-    case "Night":
-      base = 3030;
-      break;
-    default:
-      base = 3000;
+    return base + posOffset;
   }
 
-  int posOffset = 0;
-  final p = (pos ?? "A").toUpperCase();
-  if (p == "B") posOffset = 1;
-  else if (p == "C") posOffset = 2;
-  else if (p == "D") posOffset = 3;
-
-  return base + posOffset;
-}
   String get slotIdLabel => slotIdNum.toString();
+}
+
+// ------------------------
+// ✅ COPY WITH EXTENSION
+// ------------------------
+extension SlotItemCopy on SlotItem {
+  SlotItem copyWith({
+    List<Map<String, dynamic>>? participants,
+    int? bookingCount,
+    double? totalAmount,
+    String? tripStatus,
+  }) {
+    return SlotItem(
+      pk: pk,
+      sk: sk,
+      time: time,
+      vehicleType: vehicleType,
+      status: status,
+      pos: pos,
+      orderId: orderId,
+      mergeKey: mergeKey,
+      amount: amount,
+      tripStatus: tripStatus ?? this.tripStatus,
+      lat: lat,
+      lng: lng,
+      blink: blink,
+      userId: userId,
+      distributorName: distributorName,
+      distributorCode: distributorCode,
+      bookedBy: bookedBy,
+      locationId: locationId,
+      companyCode: companyCode,
+      date: date,
+      participants: participants ?? this.participants,
+      bookingCount: bookingCount ?? this.bookingCount,
+      totalAmount: totalAmount ?? this.totalAmount,
+      distanceKm: distanceKm,
+    );
+  }
 }
