@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unused_import
+// ignore_for_file: deprecated_member_use, unused_import, unused_local_variable
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -57,35 +57,46 @@ class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScree
 
     await _load();
   }
+Future<void> _load() async {
+  setState(() => loading = true);
+  try {
+    final scope = TickinAppScope.of(context);
+    final api = OrdersFlowApi(scope.httpClient);
 
-  Future<void> _load() async {
-    setState(() => loading = true);
-    try {
-      final scope = TickinAppScope.of(context);
-      final api = OrdersFlowApi(scope.httpClient);
+    final res = await api.slotConfirmedOrders(date: selectedDate);
+    final list = (res["orders"] ?? res["data"] ?? []) as List;
 
-      final res = await api.slotConfirmedOrders(date: selectedDate);
-      final list = (res["orders"] ?? res["data"] ?? []) as List;
+    final parsed = list
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .toList();
 
-      final parsed = list
-          .whereType<Map>()
-          .map((e) => e.cast<String, dynamic>())
-          .toList();
+    // ✅ filter should apply on parsed, NOT flows
+    final cleaned = parsed.where((f) {
+      final qty = (f["totalQty"] ?? f["qty"] ?? f["quantity"] ?? 0);
+      final fk = (f["flowKey"] ?? f["orderId"] ?? "").toString();
 
-      parsed.sort((a, b) {
-        final atA = (a["slotTime"] ?? "").toString();
-        final atB = (b["slotTime"] ?? "").toString();
-        return atA.compareTo(atB);
-      });
+      final q = (qty is num) ? qty.toInt() : int.tryParse("$qty") ?? 0;
 
-      setState(() => flows = parsed);
-    } catch (e) {
-      toast("❌ Load failed: $e");
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
+      if (q <= 0) return false;
+      if (fk.startsWith("LOC#")) return false;
+
+      return true;
+    }).toList();
+
+    cleaned.sort((a, b) {
+      final atA = (a["slotTime"] ?? "").toString();
+      final atB = (b["slotTime"] ?? "").toString();
+      return atA.compareTo(atB);
+    });
+
+    setState(() => flows = cleaned);
+  } catch (e) {
+    toast("❌ Load failed: $e");
+  } finally {
+    if (mounted) setState(() => loading = false);
   }
-
+}
   String safe(Map o, List<String> keys) {
     for (final k in keys) {
       final v = o[k];

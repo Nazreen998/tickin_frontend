@@ -1,4 +1,4 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: curly_braces_in_flow_control_structures, unused_local_variable, unnecessary_null_in_if_null_operators
 import '../screens/slots/slot_generator.dart';
 
 class SlotRules {
@@ -183,7 +183,23 @@ class SlotItem {
 
     final cleanedMergeKey = _cleanMergeKey(m["mergeKey"]);
     final locId = _cleanStr(m["locationId"]);
-    final finalMergeKey = cleanedMergeKey ?? (locId != null ? "LOC#$locId" : null);
+String? mergeKeyFromSk;
+if (sk.startsWith("MERGE_SLOT#")) {
+  final parts = sk.split("#");
+  if (parts.length >= 3) {
+    mergeKeyFromSk = parts.sublist(2).join("#").trim();
+    // ✅ IMPORTANT: ignore LOC# mergeKeys
+    if (mergeKeyFromSk.toUpperCase().startsWith("LOC#")) {
+      mergeKeyFromSk = null;
+    }
+  }
+}
+final safeCleanedMergeKey =
+    (cleanedMergeKey != null && cleanedMergeKey.toUpperCase().startsWith("LOC#"))
+        ? null
+        : cleanedMergeKey;
+
+final finalMergeKey = safeCleanedMergeKey ?? mergeKeyFromSk;
 
     return SlotItem(
       pk: pk,
