@@ -64,25 +64,21 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
         nextStatus: nextStatus,
         lat: lat,
         lng: lng,
-        force: true,
       );
 
-      // ❌ Backend error
       if (res["ok"] == false) {
-        throw Exception(res["message"] ?? "Failed");
+        final dist = res["distanceMeters"];
+        final radius = res["radiusMeters"];
+        toast(
+          "❌ ${res["message"] ?? "Try again"}"
+          "${dist != null ? " • You are ${dist}m away" : ""}"
+          "${radius != null ? " (need within ${radius}m)" : ""}",
+        );
+        return;
       }
 
-      // 📏 Show backend-calculated distance (single source of truth)
-      if (res["distanceMeters"] != null) {
-        toast("📏 Distance: ${res["distanceMeters"]} m • $nextStatus");
-      } else {
-        toast("✅ $nextStatus");
-      }
-
-      // 🔄 Update local order state
-      setState(() {
-        order = Map<String, dynamic>.from(res["order"]);
-      });
+      toast("✅ $nextStatus");
+      setState(() => order = Map<String, dynamic>.from(res["order"]));
     } catch (e) {
       // 🧼 Clean error message
       final msg = e.toString().replaceFirst("Exception: ", "");
