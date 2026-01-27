@@ -74,11 +74,14 @@ Future<List<Map<String, dynamic>>> getHalfBookingsRaw({
 }
 
 Future<dynamic> managerCancelBooking(Map<String, dynamic> body) async {
+  print("🔥🔥 CANCEL METHOD ENTERED 🔥🔥");
+  print("🔥 BODY = $body");
 return client.post(
-  "${ApiConfig.slots}/manager/cancel-booking",
+  "slots/manager/cancel-booking",
   body: body,
 );
 }
+
   Future<Map<String, dynamic>> managerDisableSlot(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/disable-slot", body: body);
 
