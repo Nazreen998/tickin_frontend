@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unrelated_type_equality_checks, unused_local_variable, unused_element, unnecessary_null_comparison
+// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unrelated_type_equality_checks, unused_local_variable, unused_element, unnecessary_null_comparison, dead_code, avoid_print
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -141,7 +141,7 @@ List<SlotItem> get sessionMergeSlots {
   final map = <String, SlotItem>{};
 
   for (final s in allSlots.where((x) => x.isMerge)) {
-    final key = "${s.mergeKey ?? s.sk}#${s.time}";
+    final key = s.mergeKey ?? s.sk;
 
     if (!map.containsKey(key)) {
       map[key] = s;
@@ -181,73 +181,94 @@ for (final p in [...existing.participants, ...s.participants]) {
 }
 Future<List<String>?> _pickOrdersToCancel(SlotItem mergeSlot) async {
   final scope = TickinAppScope.of(context);
-final mk = mergeSlot.mergeKey;
-final t = mergeSlot.time;
+  final mk = (mergeSlot.mergeKey ?? "").toString().trim();
+  final t = (mergeSlot.time).toString().trim();
 
-if (mk == null || mk.isEmpty || t == null || t.isEmpty) {
-  toast("MergeKey / time missing");
-  return null;
-}
+  if (mk.isEmpty || t.isEmpty) {
+    toast("MergeKey / time missing");
+    return null;
+  }
 
-final bookings = await scope.slotsApi.getHalfBookings(
+  final bookings = await scope.slotsApi.getHalfBookingsRaw(
   date: selectedDate,
   mergeKey: mk,
   time: t,
 );
 
-
-  if (bookings.isEmpty) {
-    toast("No orders found");
-    return null;
-  }
-
-  final selected = <String>{};
-
-  return showDialog<List<String>>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text('Select orders to cancel'),
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: bookings.map((b) {
-                  return CheckboxListTile(
-                    title: Text(b.agencyName),
-                    subtitle: Text('₹${b.amount} • ${b.orderId}'),
-                    value: selected.contains(b.orderId),
-                    onChanged: (v) {
-                      setState(() {
-                        v == true
-                            ? selected.add(b.orderId)
-                            : selected.remove(b.orderId);
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: selected.isEmpty
-                ? null
-                : () => Navigator.pop(context, selected.toList()),
-            child: Text('Cancel Selected'),
-          ),
-        ],
-      );
-    },
-  );
+if (bookings.isEmpty) {
+  toast("No orders found");
+  return null;
 }
 
+final selected = <String>{};
+
+return showDialog<List<String>>(
+  context: context,
+  builder: (dialogCtx) {
+    return AlertDialog(
+      title: const Text("Select orders to cancel"),
+      content: StatefulBuilder(
+        builder: (ctx, setState) {
+          return SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: bookings.map((b) {
+                final oid = (b["orderId"] ??
+                        b["orderID"] ??
+                        b["order_id"] ??
+                        b["id"] ??
+                        "")
+                    .toString()
+                    .trim();
+
+                final agency = (b["agencyName"] ?? b["distributorName"] ?? "-")
+                    .toString();
+
+                final amt = (b["amount"] ?? 0);
+                return CheckboxListTile(
+                  value: selected.contains(oid),
+                  title: Text(agency),
+                  subtitle: Text("₹$amt • $oid"),
+                  onChanged: oid.isEmpty
+                      ? null
+                      : (v) {
+                          setState(() {
+                            if (v == true) {
+                              selected.add(oid);
+                            } else {
+                              selected.remove(oid);
+                            }
+                          });
+                        },
+                );
+              }).toList(),
+            ),
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx),
+          child: const Text("Close"),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (selected.isEmpty) {
+              ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                const SnackBar(content: Text("Select at least one order")),
+              );
+              return;
+            }
+            Navigator.pop(dialogCtx, selected.toList());
+          },
+          child: const Text("Cancel Selected"),
+        ),
+      ],
+    );
+  },
+);
+}
   /// ✅ VERY IMPORTANT FIX: flatten nested `slots: [fullSlots, mergeSlots]` :contentReference[oaicite:10]{index=10}
   Future<void> _loadGrid() async {
     setState(() => loading = true);
@@ -462,16 +483,19 @@ Future<void> _cancelHalfOrders(SlotItem mergeSlot) async {
     final scope = TickinAppScope.of(context);
 
     final selectedOrderIds = await _pickOrdersToCancel(mergeSlot);
+    print("✅ selectedOrderIds => $selectedOrderIds");
+
     if (selectedOrderIds == null || selectedOrderIds.isEmpty) return;
 
-    for (final orderId in selectedOrderIds) {
-      await scope.slotsApi.managerCancelBooking({
+    for (final oid in selectedOrderIds) {
+      final out = await scope.slotsApi.managerCancelBooking({
         "companyCode": companyCode,
         "date": selectedDate,
-        "time": mergeSlot.time,       
+        "time": mergeSlot.time,
         "mergeKey": mergeSlot.mergeKey,
-        "orderId": orderId,
+        "orderId": oid,
       });
+      print("✅ cancel out => $out");
     }
 
     toast("✅ Selected HALF bookings cancelled");

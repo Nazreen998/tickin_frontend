@@ -17,11 +17,16 @@ class HttpClient {
   HttpClient(this.tokenStore);
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
-    final u = Uri.parse(
-      "${ApiConfig.baseUrl}$path",
-    ).replace(queryParameters: query);
-    print("🌐 HTTP => $u");
-    return u;
+     final base = Uri.parse(ApiConfig.baseUrl);
+
+  final cleanPath = path.startsWith("/") ? path.substring(1) : path;
+  final u = base.replace(
+    path: "${base.path.endsWith("/") ? base.path : "${base.path}/"}$cleanPath",
+    queryParameters: query,
+  );
+
+  print("🌐 HTTP => $u");
+  return u;
   }
 
   Future<Map<String, String>> _headers() async {

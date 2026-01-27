@@ -53,10 +53,31 @@ loc = loc.replaceAll(RegExp(r'^(LOC#)+', caseSensitive: false), '');
       if (loc.isNotEmpty) "locationId": loc,
     });
   }
+Future<List<Map<String, dynamic>>> getHalfBookingsRaw({
+  required String date,
+  required String mergeKey,
+  required String time,
+}) async {
+  final mk = _normalizeMergeKey(mergeKey);
 
-  Future<Map<String, dynamic>> managerCancelBooking(Map<String, dynamic> body) {
-  print("🧨 CANCEL BODY => $body");
-  return client.post("${ApiConfig.slots}/manager/cancel-booking", body: body);
+  final res = await client.get(
+    "${ApiConfig.slots}/manager/half-bookings",
+    query: {
+      'date': date,
+      'mergeKey': mk,
+      'time': time,
+    },
+  );
+
+  final list = (res['bookings'] as List?) ?? [];
+  return list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+}
+
+Future<dynamic> managerCancelBooking(Map<String, dynamic> body) async {
+return client.post(
+  "${ApiConfig.slots}/manager/cancel-booking",
+  body: body,
+);
 }
   Future<Map<String, dynamic>> managerDisableSlot(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/disable-slot", body: body);
@@ -67,6 +88,12 @@ loc = loc.replaceAll(RegExp(r'^(LOC#)+', caseSensitive: false), '');
   Future<Map<String, dynamic>> managerConfirmMerge(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/merge/confirm", body: body);
 
+  Future<Map<String, dynamic>> cancelHalfMerge(Map<String, dynamic> body) =>
+    client.post("${ApiConfig.slots}/half-merge/cancel", body: body);
+
+Future<Map<String, dynamic>> confirmHalfMerge(Map<String, dynamic> body) =>
+    client.post("${ApiConfig.slots}/half-merge/confirm", body: body);
+    
   Future<Map<String, dynamic>> managerMoveMerge(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/merge/move", body: body);
 
@@ -112,23 +139,39 @@ Future<Map<String, dynamic>> availableFullTimes({required String date}) {
 Future<Map<String, dynamic>> managerManualMergePickTime(Map<String, dynamic> body) {
   return client.post("${ApiConfig.slots}/merge/manual-pick-time", body: body);
 }
+String _normalizeMergeKey(String mk) {
+  var s = mk.toString().trim();
+
+  // remove KEY# prefix if accidentally passed
+  if (s.toUpperCase().startsWith("KEY#")) {
+    s = s.substring(4);
+  }
+
+  // if plain number like "4" -> make LOC#4
+  if (RegExp(r'^\d+$').hasMatch(s)) {
+    s = "LOC#$s";
+  }
+
+  return s;
+}
+
 Future<List<HalfBooking>> getHalfBookings({
   required String date,
   required String mergeKey,
   required String time,
 }) async {
-  final res = await client.get(
-  "${ApiConfig.slots}/manager/half-bookings",
-  query: {
-    'date': date,
-    'mergeKey': mergeKey,
-    'time': time,
-  },
-);
-final list = res['items'] as List;
+  final mk = _normalizeMergeKey(mergeKey);
 
-return list
-    .map((e) => HalfBooking.fromJson(e))
-    .toList();
-} 
+  final res = await client.get(
+    "${ApiConfig.slots}/manager/half-bookings",
+    query: {
+      'date': date,
+      'mergeKey': mk,
+      'time': time,
+    },
+  );
+
+  final list = (res['bookings'] as List?) ?? [];
+  return list.map((e) => HalfBooking.fromJson(e)).toList();
+}
 }

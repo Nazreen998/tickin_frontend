@@ -156,6 +156,7 @@ Future<void> _cancelBookedSlot(Map<String, dynamic> o) async {
   }
 
   // ✅ these keys must come from backend orders list (important!)
+final companyCode = (o["ompanyCode"] ?? "").toString().trim();
 final slotDate = (o["slotDate"] ?? "").toString().trim();
 final slotTime = (o["slotTime"] ?? "").toString().trim();
 final slotPos  = (o["slotPos"] ?? o["pos"] ?? "").toString().trim();
@@ -192,6 +193,7 @@ if (slotDate.isEmpty || slotTime.isEmpty) {
     // ✅ FULL cancel payload
     if (slotPos.isNotEmpty && bookedBy.isNotEmpty) {
       await scope.slotsApi.managerCancelBooking({
+        "companyCode": companyCode, 
         "date": slotDate,
         "time": slotTime,
         "pos": slotPos,
@@ -202,6 +204,7 @@ if (slotDate.isEmpty || slotTime.isEmpty) {
     // ✅ HALF cancel payload (needs bookingSk + mergeKey)
     else if (bookingSk.isNotEmpty && mergeKey.isNotEmpty) {
       await scope.slotsApi.managerCancelBooking({
+        "companyCode": companyCode,
         "date": slotDate,
         "time": slotTime,
         "bookingSk": bookingSk,
