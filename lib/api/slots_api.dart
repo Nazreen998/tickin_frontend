@@ -1,6 +1,8 @@
+// ignore_for_file: avoid_print
+import 'package:flutter/foundation.dart';
 import '../api/http_client.dart';
 import '../config/api_config.dart';
-
+import '../../models/half_booking_model.dart';
 class SlotsApi {
   final HttpClient client;
   SlotsApi(this.client);
@@ -52,9 +54,10 @@ loc = loc.replaceAll(RegExp(r'^(LOC#)+', caseSensitive: false), '');
     });
   }
 
-  Future<Map<String, dynamic>> managerCancelBooking(Map<String, dynamic> body) =>
-      client.post("${ApiConfig.slots}/manager/cancel-booking", body: body);
-
+  Future<Map<String, dynamic>> managerCancelBooking(Map<String, dynamic> body) {
+  print("🧨 CANCEL BODY => $body");
+  return client.post("${ApiConfig.slots}/manager/cancel-booking", body: body);
+}
   Future<Map<String, dynamic>> managerDisableSlot(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/disable-slot", body: body);
 
@@ -109,6 +112,23 @@ Future<Map<String, dynamic>> availableFullTimes({required String date}) {
 Future<Map<String, dynamic>> managerManualMergePickTime(Map<String, dynamic> body) {
   return client.post("${ApiConfig.slots}/merge/manual-pick-time", body: body);
 }
+Future<List<HalfBooking>> getHalfBookings({
+  required String date,
+  required String mergeKey,
+  required String time,
+}) async {
+  final res = await client.get(
+  "${ApiConfig.slots}/manager/half-bookings",
+  query: {
+    'date': date,
+    'mergeKey': mergeKey,
+    'time': time,
+  },
+);
+final list = res['items'] as List;
 
-    
+return list
+    .map((e) => HalfBooking.fromJson(e))
+    .toList();
+} 
 }

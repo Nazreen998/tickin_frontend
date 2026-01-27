@@ -1,10 +1,11 @@
-// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unrelated_type_equality_checks, unused_local_variable, unused_element
+// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unrelated_type_equality_checks, unused_local_variable, unused_element, unnecessary_null_comparison
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../slots/slot_generator.dart'; 
 import '../../app_scope.dart';
 import '../../models/slot_models.dart';
+import '../../models/half_booking_model.dart';
 import '../../widgets/slot_grid.dart';
 import '../../widgets/slot_rules_card.dart';
 
@@ -124,12 +125,10 @@ List<SlotItem> get sessionFullSlots {
 
     if (slotsForTime.isEmpty) continue;
 
-    // ✅ முக்கியம்:
-    // அந்த time-ல எந்த pos-லாவது BOOKED இருந்தா அதையே tile-ஆ காட்டனும்
     SlotItem pick = slotsForTime.first;
     final booked = slotsForTime.where((x) => x.isBooked).toList();
     if (booked.isNotEmpty) {
-      pick = booked.first; // booked pos tile காட்டும்
+      pick = booked.first; // booked pos tile
     }
 
     result.add(pick);
@@ -139,31 +138,114 @@ List<SlotItem> get sessionFullSlots {
   return result;
 }
 List<SlotItem> get sessionMergeSlots {
-  // 🔥 BLINK MERGES (DAY LEVEL) — show only once
-  final blinkMerges = allSlots.where((s) {
-    return s.isMerge &&
-           s.blink == true &&
-           (s.tripStatus ?? "").toUpperCase() != "FULL";
-  }).toList();
+  final map = <String, SlotItem>{};
 
-  if (blinkMerges.isNotEmpty) {
-    // one tile per mergeKey
-    final map = <String, SlotItem>{};
-    for (final s in blinkMerges) {
-      map[s.mergeKey ?? s.sk] = s;
+  for (final s in allSlots.where((x) => x.isMerge)) {
+    final key = "${s.mergeKey ?? s.sk}#${s.time}";
+
+    if (!map.containsKey(key)) {
+      map[key] = s;
+    } else {
+      final existing = map[key]!;
+final mergedParticipants = <Map<String, dynamic>>[];
+final seen = <String>{};
+
+for (final p in [...existing.participants, ...s.participants]) {
+  final oid = (p["orderId"] ?? "").toString();
+  final uniqKey = oid.isNotEmpty ? oid : jsonEncode(p);
+  if (seen.add(uniqKey)) mergedParticipants.add(p);
+}
+      final total = mergedParticipants.fold<double>(
+        0,
+        (sum, p) => sum + ((p["amount"] ?? 0) as num).toDouble(),
+      );
+
+      final status =
+          mergedParticipants.length >= 2 && total >= rules.maxAmount
+              ? "READY"
+              : mergedParticipants.length >= 2
+                  ? "WAITING"
+                  : "PARTIAL";
+
+      map[key] = existing.copyWith(
+        participants: mergedParticipants,
+        bookingCount: mergedParticipants.length,
+        totalAmount: total,
+        tripStatus: status,
+      );
     }
-    return map.values.toList();
   }
 
-  // fallback: normal (old) behaviour
-  final times = _timesForSession(selectedSession);
-  return allSlots.where((s) {
-    if (!s.isMerge) return false;
-    final t = SlotItem.normalizeTime(s.time);
-    if (!times.contains(t)) return false;
-    if ((s.tripStatus ?? "").toUpperCase() == "FULL") return false;
-    return true;
-  }).toList();
+  // ❌ empty merge slots auto delete
+  return map.values.where((s) => s.participants.isNotEmpty).toList();
+}
+Future<List<String>?> _pickOrdersToCancel(SlotItem mergeSlot) async {
+  final scope = TickinAppScope.of(context);
+final mk = mergeSlot.mergeKey;
+final t = mergeSlot.time;
+
+if (mk == null || mk.isEmpty || t == null || t.isEmpty) {
+  toast("MergeKey / time missing");
+  return null;
+}
+
+final bookings = await scope.slotsApi.getHalfBookings(
+  date: selectedDate,
+  mergeKey: mk,
+  time: t,
+);
+
+
+  if (bookings.isEmpty) {
+    toast("No orders found");
+    return null;
+  }
+
+  final selected = <String>{};
+
+  return showDialog<List<String>>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Select orders to cancel'),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: bookings.map((b) {
+                  return CheckboxListTile(
+                    title: Text(b.agencyName),
+                    subtitle: Text('₹${b.amount} • ${b.orderId}'),
+                    value: selected.contains(b.orderId),
+                    onChanged: (v) {
+                      setState(() {
+                        v == true
+                            ? selected.add(b.orderId)
+                            : selected.remove(b.orderId);
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: selected.isEmpty
+                ? null
+                : () => Navigator.pop(context, selected.toList()),
+            child: Text('Cancel Selected'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
   /// ✅ VERY IMPORTANT FIX: flatten nested `slots: [fullSlots, mergeSlots]` :contentReference[oaicite:10]{index=10}
@@ -379,26 +461,25 @@ Future<void> _cancelHalfOrders(SlotItem mergeSlot) async {
   try {
     final scope = TickinAppScope.of(context);
 
-    for (final p in mergeSlot.participants) {
-      final orderId = p["orderId"];
-      if (orderId == null) continue;
+    final selectedOrderIds = await _pickOrdersToCancel(mergeSlot);
+    if (selectedOrderIds == null || selectedOrderIds.isEmpty) return;
 
+    for (final orderId in selectedOrderIds) {
       await scope.slotsApi.managerCancelBooking({
         "companyCode": companyCode,
         "date": selectedDate,
-        "time": mergeSlot.time,
+        "time": mergeSlot.time,       
         "mergeKey": mergeSlot.mergeKey,
         "orderId": orderId,
       });
     }
 
-    toast("✅ HALF bookings cancelled");
+    toast("✅ Selected HALF bookings cancelled");
     await _loadGrid();
   } catch (e) {
     toast("❌ HALF cancel failed: $e");
   }
 }
-
   Future<String> _managerId() async {
     try {
       final scope = TickinAppScope.of(context);
