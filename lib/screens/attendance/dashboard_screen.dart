@@ -1,4 +1,5 @@
 import 'package:book_yours/screens/attendance/allowance_config_screen.dart';
+import 'package:book_yours/screens/attendance/monthly_summary_tab.dart';
 import 'package:flutter/material.dart';
 import 'weekly_summary_tab.dart';
 import 'today_summary_tab.dart';
@@ -10,7 +11,7 @@ class AttendanceDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Attendance Dashboard"),
@@ -20,6 +21,7 @@ class AttendanceDashboardScreen extends StatelessWidget {
             unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(text: "Weekly"),
+              Tab(text: "Monthly"),
               Tab(text: "Today"),
               Tab(text: "Day-wise"),
               Tab(text: "Config"),
@@ -29,6 +31,7 @@ class AttendanceDashboardScreen extends StatelessWidget {
         body: const TabBarView(
           children: [
             WeeklySummaryTab(),
+            MonthlySummaryTab(),
             TodaySummaryTab(),
             DaywiseSummaryTab(),
             AllowanceConfigTab(),

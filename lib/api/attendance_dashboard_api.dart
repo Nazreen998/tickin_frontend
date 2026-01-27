@@ -23,4 +23,12 @@ class AttendanceDashboardApi {
       query: {"date": date},
     );
   }
+
+  // ---------------- MONTHLY SUMMARY ----------------
+  Future<Map<String, dynamic>> monthlySummary({required String month}) {
+    return client.get(
+      "${ApiConfig.attendance}/dashboard/monthly-summary",
+      query: {"month": month},
+    );
+  }
 }

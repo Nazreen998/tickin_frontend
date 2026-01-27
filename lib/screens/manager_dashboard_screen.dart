@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../app_scope.dart';
 import 'create_order_screen.dart';
 import 'slots/slot_booking_screen.dart';
+import 'login_screen.dart';
 
 // ✅ FIX: import slot confirmed orders list screen
 import 'manager_orders_with_slot_screen.dart';
@@ -96,6 +97,21 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         title: const Text("VAGR Dashboard"),
         actions: [
           IconButton(onPressed: _loadCounts, icon: const Icon(Icons.refresh)),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final scope = TickinAppScope.of(context);
+              await scope.tokenStore.clear();
+
+              if (!context.mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            },
+          ),
         ],
       ),
 

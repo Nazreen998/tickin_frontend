@@ -76,6 +76,8 @@ class _DaywiseSummaryTabState extends State<DaywiseSummaryTab> {
               columns: const [
                 DataColumn(label: Text("Name")),
                 DataColumn(label: Text("Role")),
+                DataColumn(label: Text("Check-In")),
+                DataColumn(label: Text("Check-Out")),
                 DataColumn(label: Text("Status")),
                 DataColumn(label: Text("Office")),
                 DataColumn(label: Text("Bata")),
@@ -86,6 +88,8 @@ class _DaywiseSummaryTabState extends State<DaywiseSummaryTab> {
                   cells: [
                     DataCell(Text(r["userName"] ?? "")),
                     DataCell(Text(r["attendanceRole"] ?? r["role"] ?? "")),
+                    DataCell(Text(r["checkInAt"] ?? "-")),
+                    DataCell(Text(r["checkOutAt"] ?? "-")),
                     DataCell(Text(r["status"] ?? "")),
                     DataCell(Text(r["locationId"] ?? "-")),
                     DataCell(Text("₹${r["bataAmount"] ?? 0}")),
