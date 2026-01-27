@@ -487,17 +487,19 @@ Future<void> _cancelHalfOrders(SlotItem mergeSlot) async {
   try {
     final scope = TickinAppScope.of(context);
 
-    final orderIds = await _pickOrdersToCancel(mergeSlot);
-    if (orderIds == null || orderIds.isEmpty) return;
+    final bookingSks = await _pickOrdersToCancel(mergeSlot);
+    if (bookingSks == null || bookingSks.isEmpty) return;
 
-    for (final orderId in orderIds) {
-      await scope.slotsApi.managerCancelBooking({
+    for (final bookingSk in bookingSks) {
+      final out = await scope.slotsApi.managerCancelBooking({
         "companyCode": companyCode,
         "date": selectedDate,
         "time": mergeSlot.time,
         "mergeKey": mergeSlot.mergeKey,
-        "orderId": orderId, // 🔥 THIS IS THE KEY
+        "bookingSk": bookingSk,
       });
+
+      print("✅ HALF cancel out => $out");
     }
 
     toast("✅ Selected HALF bookings cancelled");

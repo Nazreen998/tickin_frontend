@@ -72,13 +72,13 @@ Future<List<Map<String, dynamic>>> getHalfBookingsRaw({
   final list = (res['bookings'] as List?) ?? [];
   return list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 }
-Future<dynamic> managerCancelBooking(Map<String, dynamic> body) {
-  print("🔥 CANCEL BODY => $body");
+Future<dynamic> managerCancelBooking(Map<String, dynamic> body) async {
   return client.post(
-    "${ApiConfig.slots}/manager/cancel-booking", // ✅ ONLY THIS
+    "${ApiConfig.slots}/manager/cancel-booking",
     body: body,
   );
 }
+
   Future<Map<String, dynamic>> managerDisableSlot(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/disable-slot", body: body);
 
