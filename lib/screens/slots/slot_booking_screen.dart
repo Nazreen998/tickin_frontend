@@ -183,7 +183,7 @@ Future<List<String>?> _pickOrdersToCancel(SlotItem mergeSlot) async {
   final scope = TickinAppScope.of(context);
 
   final mk = (mergeSlot.mergeKey ?? "").toString().trim();
-  final t = (mergeSlot.time).toString().trim();
+  final t = mergeSlot.time.toString().trim();
 
   if (mk.isEmpty || t.isEmpty) {
     toast("MergeKey / time missing");
@@ -201,7 +201,7 @@ Future<List<String>?> _pickOrdersToCancel(SlotItem mergeSlot) async {
     return null;
   }
 
-  final selected = <String>{}; // ✅ ORDER IDs ONLY
+  final selected = <String>{}; // ✅ ORDER ID ONLY
 
   return showDialog<List<String>>(
     context: context,
@@ -215,28 +215,20 @@ Future<List<String>?> _pickOrdersToCancel(SlotItem mergeSlot) async {
               child: ListView(
                 shrinkWrap: true,
                 children: bookings.map((b) {
-                  // ✅ FINAL FIX: USE orderId ONLY
-                  final orderId = (b["orderId"] ??
-                          b["orderID"] ??
-                          b["order_id"] ??
-                          "")
-                      .toString()
-                      .trim();
-
-                  if (orderId.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
+                  final orderId = (b["orderId"] ?? "").toString().trim();
+                  if (orderId.isEmpty) return const SizedBox.shrink();
 
                   final agency =
                       (b["agencyName"] ?? b["distributorName"] ?? "-")
                           .toString();
 
-                  final amt = (b["amount"] ?? 0);
+                  final amount =
+                      (b["amount"] is num) ? b["amount"] : 0;
 
                   return CheckboxListTile(
                     value: selected.contains(orderId),
                     title: Text(agency),
-                    subtitle: Text("₹$amt • $orderId"),
+                    subtitle: Text("₹$amount • $orderId"),
                     onChanged: (v) {
                       setState(() {
                         if (v == true) {
@@ -265,6 +257,7 @@ Future<List<String>?> _pickOrdersToCancel(SlotItem mergeSlot) async {
                 );
                 return;
               }
+              print("🔥 Cancel Selected CLICKED => $selected");
               Navigator.pop(dialogCtx, selected.toList());
             },
             child: const Text("Cancel Selected"),
@@ -484,27 +477,43 @@ if (act == "confirm") {
 }
   }
 Future<void> _cancelHalfOrders(SlotItem mergeSlot) async {
+  print("🔥 _cancelHalfOrders CALLED");
+  print("🔥 mergeKey=${mergeSlot.mergeKey} time=${mergeSlot.time} date=$selectedDate");
+
   try {
     final scope = TickinAppScope.of(context);
 
-    final bookingSks = await _pickOrdersToCancel(mergeSlot);
-    if (bookingSks == null || bookingSks.isEmpty) return;
+    final selectedOrderIds = await _pickOrdersToCancel(mergeSlot);
+    print("🔥 selectedOrderIds => $selectedOrderIds");
 
-    for (final bookingSk in bookingSks) {
+    if (selectedOrderIds == null) {
+      toast("Dialog closed");
+      return;
+    }
+
+    if (selectedOrderIds.isEmpty) {
+      toast("No order selected");
+      return;
+    }
+
+    for (final oid in selectedOrderIds) {
+      print("🔥 cancelling oid => $oid");
+
       final out = await scope.slotsApi.managerCancelBooking({
         "companyCode": companyCode,
         "date": selectedDate,
         "time": mergeSlot.time,
         "mergeKey": mergeSlot.mergeKey,
-        "bookingSk": bookingSk,
+        "orderId": oid,
       });
 
-      print("✅ HALF cancel out => $out");
+      print("✅ cancel out => $out");
     }
 
     toast("✅ Selected HALF bookings cancelled");
     await _loadGrid();
   } catch (e) {
+    print("❌ cancel error => $e");
     toast("❌ HALF cancel failed: $e");
   }
 }
