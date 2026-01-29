@@ -58,19 +58,17 @@ Future<List<Map<String, dynamic>>> getHalfBookingsRaw({
   required String mergeKey,
   required String time,
 }) async {
-  final mk = _normalizeMergeKey(mergeKey);
-
   final res = await client.get(
     "${ApiConfig.slots}/manager/half-bookings",
     query: {
-      'date': date,
-      'mergeKey': mk,
-      'time': time,
+      "date": date,
+      "mergeKey": mergeKey,
+      "time": time,
     },
   );
 
-  final list = (res['bookings'] as List?) ?? [];
-  return list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  final list = (res["bookings"] ?? []) as List;
+  return list.map((e) => Map<String, dynamic>.from(e)).toList();
 }
 Future<dynamic> managerCancelBooking(Map<String, dynamic> body) async {
   return client.post(
@@ -81,6 +79,14 @@ Future<dynamic> managerCancelBooking(Map<String, dynamic> body) async {
 
   Future<Map<String, dynamic>> managerDisableSlot(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/disable-slot", body: body);
+
+Future<Map<String, dynamic>> halfMergeConfirm(
+    Map<String, dynamic> body,) async {
+  return client.post(
+    "${ApiConfig.slots}/half-merge/confirm",
+    body: body,
+  );
+}
 
   Future<Map<String, dynamic>> managerEnableSlot(Map<String, dynamic> body) =>
       client.post("${ApiConfig.slots}/enable-slot", body: body);
