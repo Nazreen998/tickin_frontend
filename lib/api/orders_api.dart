@@ -135,7 +135,7 @@ if (status == "PENDING") {
   );
 
   if (confirmed.containsKey("ok") && confirmed["ok"] == false) {
-    throw ApiException("Confirm failed");
+  throw ApiException(confirmed["message"] ?? "Confirm failed");
   }
 
   return {...created, "status": "CONFIRMED"};
