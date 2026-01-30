@@ -31,6 +31,17 @@ class DriverApi {
       },
     );
   }
+Future<Map<String, dynamic>> deleteOrder({
+  required String orderId,
+  required String driverId,
+}) {
+  return client.post(
+    "${ApiConfig.driver}/order/$orderId/delete",
+    body: {
+      "driverId": driverId,
+    },
+  );
+}
 
   /// 📍 Optional: validate reach (if you want separate check)
   Future<Map<String, dynamic>> validateReach({
