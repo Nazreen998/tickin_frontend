@@ -494,21 +494,29 @@ Widget build(BuildContext context) {
   // ✅ Items separated by distributor
   final Map<String, List<Map<String, dynamic>>> itemsByDist = {};
 
-  for (final o in uniqueOrders) {
-    final dist = _s(
-      o["distributorName"] ??
-          o["distributor"] ??
-          o["distributorCode"] ??
-          o["distCode"] ??
-          "Unknown",
-    ).trim();
+  for (final o in ordersRaw) {
+  final distName = _s(
+    o["distributorName"] ??
+    o["distributor"] ??
+    o["distributorCode"] ??
+    o["distCode"] ??
+    "Distributor",
+  ).trim();
 
-    final items = List<Map<String, dynamic>>.from(
-      o["loadingItems"] ?? o["items"] ?? o["orderItems"] ?? [],
-    );
+  final orderId = _s(o["orderId"] ?? o["id"] ?? "").trim();
 
-    itemsByDist.putIfAbsent(dist, () => []);
-    itemsByDist[dist]!.addAll(items);
+  // 🔑 UNIQUE key per distributor ORDER
+  final distKey =
+      orderId.isNotEmpty ? "$distName ($orderId)" : distName;
+
+  final items = List<Map<String, dynamic>>.from(
+    o["loadingItems"] ?? o["items"] ?? o["orderItems"] ?? [],
+  );
+
+  if (items.isEmpty) continue;
+
+  itemsByDist.putIfAbsent(distKey, () => []);
+  itemsByDist[distKey]!.addAll(items);
   }
 
   // ✅ CHANGE 3 fallback: if no items in orders, use root loadingItems
@@ -521,27 +529,30 @@ Widget build(BuildContext context) {
   }
 
   // ✅ totalQty (fallback root totalQty)
-  final totalQty = uniqueOrders.isNotEmpty
-      ? _num(uniqueOrders.fold<num>(
-          0,
-          (p, o) => p + _num(o["totalQty"] ?? o["qty"] ?? 0),
-        ))
-      : _num(f["totalQty"] ?? widget.totalQty);
-
+  final totalQty = _num(
+  f["totalQty"] ??
+  widget.totalQty ??
+  uniqueOrders.fold<num>(
+    0,
+    (p, o) => p + _num(o["totalQty"] ?? o["qty"] ?? 0),
+  ),
+);
   // ✅ totalAmount (backend uses grandTotal)
-  final totalAmount = uniqueOrders.isNotEmpty
-      ? _num(uniqueOrders.fold<num>(
-          0,
-          (p, o) =>
-              p +
-              _num(o["grandTotal"] ??
-                  o["totalAmount"] ??
-                  o["amount"] ??
-                  o["total"] ??
-                  0),
-        ))
-      : _num(f["grandTotal"] ?? f["totalAmount"] ?? widget.totalAmount);
-
+final totalAmount = _num(
+  f["grandTotal"] ??
+  f["totalAmount"] ??
+  widget.totalAmount ??
+  uniqueOrders.fold<num>(
+    0,
+    (p, o) =>
+        p +
+        _num(o["grandTotal"] ??
+            o["totalAmount"] ??
+            o["amount"] ??
+            o["total"] ??
+            0),
+  ),
+);
   // ✅ Distributor Names (fallback distributorCode)
   final distNames = <String>[];
   for (final o in uniqueOrders) {
@@ -557,8 +568,10 @@ Widget build(BuildContext context) {
       distNames.add(dn);
     }
   }
-  final distText = distNames.isNotEmpty ? distNames.join(" , ") : "-";
-
+  final distText = _s(
+  f["distributorDisplay"] ??
+  (distNames.isNotEmpty ? distNames.join(" , ") : "-"),
+);
   // ✅ Status
   final st = (status.isNotEmpty ? status : (widget.statusFromSlot ?? ""))
       .toUpperCase();

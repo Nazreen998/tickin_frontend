@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype, unused_element
+// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype
 
 import 'package:flutter/material.dart';
 import '../app_scope.dart';
@@ -33,7 +33,6 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
     );
   }
 
-  /// 🔥 LOAD DRIVER ORDERS
   Future<void> _load() async {
     setState(() => loading = true);
     try {
@@ -49,9 +48,26 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
 
       setState(() {
         orders = list
-            .where((e) => e is Map)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
+    .where((e) {
+      if (e is! Map) return false;
+
+      final m = Map<String, dynamic>.from(e);
+
+      final status = (m["status"] ?? "").toString().toUpperCase();
+      final oid = (m["orderId"] ?? "").toString();
+
+      // ❌ hide merged child orders
+      if (status == "MERGED") return false;
+
+      // ❌ show only FULL order for merged flows
+      if (oid.startsWith("ORD_FULL_")) return true;
+
+      // ✅ allow normal single orders also
+      return status != "MERGED";
+    })
+    .map((e) => Map<String, dynamic>.from(e))
+    .toList();
+
       });
     } catch (e) {
       toast("❌ Load failed");
@@ -75,17 +91,10 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
     return num.tryParse(v.toString()) ?? 0;
   }
 
-  /// 🗑️ DELETE ORDER (SOFT DELETE)
+  /// 🗑️ DELETE ORDER (ALWAYS ALLOWED)
   void _deleteOrder(int index, Map<String, dynamic> o) async {
     final orderId = _safe(o, ["orderId", "id"]);
-    final status = _safe(o, ["status"]).toUpperCase();
     final scope = TickinAppScope.of(context);
-
-    // 🛑 SAFETY CHECK
-    if (status == "DELIVERY_COMPLETED") {
-      toast("❌ Completed order cannot be deleted");
-      return;
-    }
 
     final ok = await showDialog<bool>(
       context: context,
@@ -122,7 +131,7 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
       setState(() => orders.removeAt(index));
       toast("🗑️ Order removed");
     } catch (e) {
-      toast("❌ ${e.toString().replaceAll('Exception:', '').trim()}");
+      toast("❌ Delete failed");
     }
   }
 
@@ -151,9 +160,6 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
 
                       final orderId = _safe(o, ["orderId", "id"]);
                       final status = _safe(o, ["status"]);
-                      final statusUpper = status.toUpperCase();
-                      final canDelete = statusUpper != "DELIVERY_COMPLETED";
-
                       final distributor = _safe(o, [
                         "distributorName",
                         "agencyName",
@@ -198,15 +204,11 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
                               ),
                               const SizedBox(width: 10),
                               ElevatedButton.icon(
-                                onPressed: canDelete
-                                    ? () => _deleteOrder(i, o)
-                                    : null,
+                                onPressed: () => _deleteOrder(i, o),
                                 icon: const Icon(Icons.delete),
                                 label: const Text("DELETE"),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: canDelete
-                                      ? Colors.red
-                                      : Colors.grey,
+                                  backgroundColor: Colors.red,
                                 ),
                               ),
                             ],
