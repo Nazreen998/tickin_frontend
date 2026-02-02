@@ -221,7 +221,7 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
       final usersApi = UsersApi(scope.httpClient);
       final vehiclesApi = VehiclesApi(scope.httpClient);
 
-      final fRes = await flowApi.getOrderFlowByKey(widget.flowKey);
+      final fRes = await flowApi.getOrderFlowByKey(_correctFlowKey());
 
       final f = (fRes["order"] ??
               (fRes["data"]?["order"]) ??
@@ -269,11 +269,11 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
               fRes["data"] ??
               fRes) as Map<String, dynamic>?;
 
-      final st = (f?["status"] ?? widget.statusFromSlot ?? "").toString();
+      final st = f?["status"]?.toString() ?? "";
 
-      setState(() {
+      setState(() { 
         flowOrder = f;
-        status = st;
+        status = st.toUpperCase(); 
 
         selectedVehicle =
             (flowOrder?["vehicleNo"] ?? flowOrder?["vehicleType"])?.toString();
@@ -590,17 +590,15 @@ final totalAmount = _num(
   (distNames.isNotEmpty ? distNames.join(" , ") : "-"),
 );
   // ✅ Status
-  final st = (status.isNotEmpty ? status : (widget.statusFromSlot ?? ""))
-      .toUpperCase();
+final st = _s(flowOrder?["status"]).toUpperCase();
 
-  final hasVehicle =
-      selectedVehicle != null && selectedVehicle!.trim().isNotEmpty;
-
-  final isConfirmed = st == "CONFIRMED" || st == "SLOT_BOOKED";
+  final isConfirmed = st == "CONFIRMED" || st == "SLOT_BOOKED"|| st == "VEHICLE_SELECTED"; 
   final isLoadingStarted = st == "LOADING_STARTED";
   final isLoadingDone = st == "LOADING_COMPLETED";
   final isDriverAssigned = st == "DRIVER_ASSIGNED";
-
+final hasVehicle =
+    selectedVehicle != null && selectedVehicle!.trim().isNotEmpty;
+    
   final canPickVehicle =
       isConfirmed && !isLoadingStarted && !isLoadingDone && !isDriverAssigned;
 

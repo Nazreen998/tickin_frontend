@@ -12,9 +12,10 @@ class OrdersFlowApi {
   }
 
   Future<Map<String, dynamic>> getOrderFlowByKey(String flowKey) {
-    print("🔥 OrdersFlowApi.getOrderFlowByKey => $flowKey");
-    return client.get("$_b/flow/$flowKey");
-  }
+  print("🔥 FLOW API CALLED WITH => $flowKey");
+  return client.get("$_b/flow/$flowKey");
+}
+
 
   /// ✅ Vehicle Selected — TRY FLOWKEY, if route conflict then fallback ORDERID
   Future<Map<String, dynamic>> vehicleSelectedSmart({
@@ -35,14 +36,18 @@ class OrdersFlowApi {
   }
 }
   /// ✅ Loading Start
-  Future<Map<String, dynamic>> loadingStart(String flowKey) {
-    return client.post("$_b/loading-start", body: {"flowKey": flowKey});
-  }
+  Future<Map<String, dynamic>> loadingStart(String flowKey) async {
+  return client.post(
+    "/api/orders/loading-start",body:{"flowKey": flowKey});
+}
 
   /// ✅ Loading End
-  Future<Map<String, dynamic>> loadingEnd(String flowKey) {
-    return client.post("$_b/loading-end", body: {"flowKey": flowKey});
-  }
+ Future<Map<String, dynamic>> loadingEnd(String flowKey) async {
+  return client.post(
+    "/api/orders/loading-end",   // 🔥 FIXED
+    body: {"flowKey": flowKey},
+  );
+}
 
   /// ✅ Assign Driver
   Future<Map<String, dynamic>> assignDriver({
