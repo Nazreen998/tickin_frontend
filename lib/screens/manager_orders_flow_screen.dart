@@ -39,13 +39,30 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
 
   Map<String, dynamic>? flowOrder;
   String status = "";
-
   String? selectedVehicle;
   String? selectedDriverId;
+  // 🔥 PASTE HERE 👇
+  String _correctFlowKey() {
+    final fromApi =
+        flowOrder?["trackingOrderId"] ??
+        flowOrder?["masterOrderId"] ??
+        flowOrder?["flowKey"];
+
+    if (fromApi != null && fromApi.toString().startsWith("ORD_FULL_")) {
+      return fromApi.toString();
+    }
+
+    if (widget.flowKey.startsWith("ORD") &&
+        !widget.flowKey.startsWith("ORD_FULL_")) {
+      return "ORD_FULL_${widget.flowKey.replaceFirst("ORD", "")}";
+    }
+
+    return widget.flowKey;
+  }
 
   List<String> vehicles = [];
   List<Map<String, dynamic>> drivers = [];
-
+  
   @override
   void initState() {
     super.initState();
@@ -282,7 +299,7 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
       final flowApi = OrdersFlowApi(scope.httpClient);
 
       final res = await flowApi.vehicleSelectedSmart(
-        flowKey: widget.flowKey,
+        flowKey: _correctFlowKey(),
         orderId: widget.orderId,
         vehicleNo: v,
       );
@@ -311,7 +328,7 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
       final scope = TickinAppScope.of(context);
       final flowApi = OrdersFlowApi(scope.httpClient);
 
-      final res = await flowApi.loadingStart(widget.flowKey);
+      final res = await flowApi.loadingStart(_correctFlowKey());
       if (res["ok"] == false) {
         throw Exception(res["message"] ?? "Loading Start failed");
       }
@@ -331,7 +348,7 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
       final scope = TickinAppScope.of(context);
       final flowApi = OrdersFlowApi(scope.httpClient);
 
-      final res = await flowApi.loadingEnd(widget.flowKey);
+      final res = await flowApi.loadingEnd(_correctFlowKey());
       if (res["ok"] == false) {
         throw Exception(res["message"] ?? "Loading End failed");
       }
@@ -358,7 +375,7 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
       final flowApi = OrdersFlowApi(scope.httpClient);
 
       final res = await flowApi.assignDriver(
-        flowKey: widget.flowKey,
+        flowKey: _correctFlowKey(),
         driverId: driverId,
         vehicleNo: selectedVehicle,
       );
@@ -638,7 +655,7 @@ final totalAmount = _num(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("FlowKey: ${widget.flowKey}",
+                      Text("FlowKey: ${_correctFlowKey()}",
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
                       Text("SlotTime: ${widget.slotTime ?? '-'}"),
