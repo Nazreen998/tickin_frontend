@@ -5,6 +5,7 @@ import 'storage/token_store.dart';
 import 'api/http_client.dart';
 import 'api/slots_api.dart';
 import 'api/orders_api.dart';
+import 'api/driver_api.dart';
 import 'api/sales_api.dart';
 import 'api/goals_api.dart';
 import 'api/timeline_api.dart';
@@ -28,6 +29,7 @@ class TickinAppScope extends InheritedWidget {
   final UsersApi userApi;
   final VehiclesApi vehiclesApi;
   final SlotsApi slotsApi;
+  final DriverApi driverApi;
 
   final AuthProvider authProvider;
   final AttendanceApi attendanceApi;
@@ -49,6 +51,7 @@ class TickinAppScope extends InheritedWidget {
     required this.attendanceApi,
     required this.attendanceDashboardApi,
     required this.attendanceConfigApi,
+    required this.driverApi,
     super.key,
   });
 
@@ -73,6 +76,7 @@ class TickinAppScope extends InheritedWidget {
       userApi: UsersApi(client),
       vehiclesApi: VehiclesApi(client),
       slotsApi: SlotsApi(client),
+      driverApi: DriverApi(client),
       authProvider: AuthProvider(ts),
       attendanceApi: AttendanceApi(client),
       attendanceDashboardApi: AttendanceDashboardApi(client),
@@ -85,6 +89,10 @@ class TickinAppScope extends InheritedWidget {
     assert(scope != null, "TickinAppScope not found above this context");
     return scope!;
   }
+// ✅ ADD THIS INSIDE TickinAppScope class
+Future<String> get driverId async {
+  return await authProvider.tokenStore.userId ?? "";
+}
 
   @override
   bool updateShouldNotify(TickinAppScope oldWidget) => false;

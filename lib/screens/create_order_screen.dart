@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures, unused_local_variable
+// ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures, unused_local_variable, unnecessary_null_comparison, dead_code
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -176,7 +176,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         }
       });
     } catch (e) {
-      toast(e.toString());
+       // ❌ DO NOT show toast for background refresh failure
+       debugPrint("loadHome failed: $e");
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -303,6 +304,15 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         items: items,
         companyCode: companyCode,
       );
+      // 🔥 ADD THIS CHECK
+     if (created == null) {
+  throw Exception("No response from server");
+}
+
+// ❗ only treat explicit ok:false as error
+if (created.containsKey('ok') && created['ok'] == false) {
+  throw Exception(created['message'] ?? 'Order creation failed');
+}
       final bool isSalesOfficerVnr = role == "SALES_OFFICER_VNR";
       String orderId = (created["orderId"] ?? "").toString().trim();
       if (orderId.isEmpty) {
@@ -386,8 +396,10 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         await _fetchMonthlyGoals(selectedDistributorId!);
       }
     } catch (e) {
-      toast("❌ ${e.toString()}");
-    } finally {
+  debugPrint("Create order error: $e");
+  toast("❌ Unable to create order. Please retry.");
+}
+ finally {
       if (mounted) setState(() => loading = false);
     }
   }
