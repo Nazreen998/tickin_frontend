@@ -16,9 +16,7 @@ class Root extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TickinAppScope(
-      child: const TickinApp(),
-    );
+    return TickinAppScope(child: const TickinApp());
   }
 }
 

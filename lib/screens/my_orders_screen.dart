@@ -309,27 +309,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       ],
                     ),
                     onTap: () {
-                      // ✅ SALES_OFFICER_VNR -> Order Details
-                      if (isSalesOfficerVnr) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                OrderDetailsScreen(orderId: orderId),
-                          ),
-                        );
-                        return;
-                      }
-
-                      // existing behavior for others
-                      if (slotBooked) {
-                        toast("✅ Slot already booked. SLOT & DELETE disabled.");
-                        return;
-                      }
-                      _openSlotBooking(o);
-                    },
-
-                    onLongPress: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
