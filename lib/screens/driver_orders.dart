@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype
+// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype, avoid_print
 
 import 'package:flutter/material.dart';
 import '../app_scope.dart';
@@ -39,8 +39,11 @@ Future<void> _load() async {
     final scope = TickinAppScope.of(context);
     final driverId = await scope.driverId;
 
-    final list = await DriverApi(scope.httpClient)
-        .getDriverOrders(driverId);
+    if (driverId.isEmpty) {
+      throw Exception("DriverId missing from token");
+    }
+
+    final list = await scope.driverApi.getDriverOrders(driverId);
 
     setState(() {
       orders = list;
@@ -52,6 +55,7 @@ Future<void> _load() async {
     if (mounted) setState(() => loading = false);
   }
 }
+
   String _safe(Map o, List<String> keys) {
     for (final k in keys) {
       if (o[k] != null && o[k].toString().isNotEmpty) {

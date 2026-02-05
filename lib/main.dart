@@ -5,7 +5,6 @@ import 'app_scope.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/manager_dashboard_screen.dart';
-import 'screens/driver_dashboard_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,9 +67,7 @@ class _AuthGateState extends State<AuthGate> {
     try {
       final userMap = jsonDecode(userJson) as Map<String, dynamic>;
       final role = (userMap["role"] ?? "").toString().toUpperCase();
-      if (role == "DRIVER") {
-  return const DriverDashboardScreen();
-}
+      
       final userRole = mapRole(role); // ✅ from login_screen.dart
 
       return ManagerDashboardScreen(role: userRole);

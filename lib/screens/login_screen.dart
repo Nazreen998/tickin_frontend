@@ -72,20 +72,30 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception("User object missing in response");
       }
 
-      final userMap = userMapRaw.cast<String, dynamic>();
+      final rawUser = userMapRaw.cast<String, dynamic>();
 
-      await scope.authProvider.setSession(token: token, userMap: userMap);
+// 🔥 FORCE userId creation (THIS FIXES EVERYTHING)
+final fixedUser = {
+  ...rawUser,
+  "userId": rawUser["userId"] ??
+      rawUser["id"] ??
+      "USER#${rawUser["mobile"]}",
+};
 
+await scope.authProvider.setSession(
+  token: token,
+  userMap: fixedUser,
+);
       if (!mounted) return;
 
-      final role = (userMap["role"] ?? "").toString().toUpperCase();
+      final role = (fixedUser["role"] ?? "").toString().toUpperCase();
       final distCode =
-          (userMap["distributorCode"] ?? userMap["distributorId"] ?? "D001")
+          (fixedUser["distributorCode"] ?? fixedUser["distributorId"] ?? "D001")
               .toString();
       final distName =
-          (userMap["distributorName"] ?? userMap["agencyName"] ?? "Distributor")
+          (fixedUser["distributorName"] ?? fixedUser["agencyName"] ?? "Distributor")
               .toString();
-      final locId = (userMap["locationId"] ?? "LOC1").toString();
+      final locId = (fixedUser["locationId"] ?? "LOC1").toString();
 
       // ================= OLD LOGIC (NOT DELETED) =================
       /*
