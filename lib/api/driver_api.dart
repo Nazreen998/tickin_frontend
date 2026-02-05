@@ -11,21 +11,19 @@ class DriverApi {
 
   /// 🚚 Driver active orders (card list)
   Future<List<Map<String, dynamic>>> getDriverOrders(String driverId) async {
-    final cleanId = _cleanDriverId(driverId);
+  final id = driverId.startsWith("USER#")
+      ? driverId
+      : "USER#$driverId";
 
-    final res =
-        await client.get("${ApiConfig.driver}/$cleanId/orders");
+  final res = await client.get("${ApiConfig.driver}/$id/orders");
 
-    print("🟢 DRIVER ORDERS API RAW => $res");
+  final List list =
+      (res["orders"] is List) ? res["orders"] : [];
 
-    final List list =
-        (res["orders"] is List) ? res["orders"] : [];
-
-    return list
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-  }
-
+  return list
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
+}
   /// 🔁 Update driver order status
   Future<Map<String, dynamic>> updateStatus({
     required String orderId,

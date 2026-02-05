@@ -91,9 +91,10 @@ class TickinAppScope extends InheritedWidget {
   }
 // ✅ ADD THIS INSIDE TickinAppScope class
 Future<String> get driverId async {
-  return await authProvider.tokenStore.userId ?? "";
+  final id = await authProvider.tokenStore.userId ?? "";
+  if (id.isEmpty) return "";
+  return id.startsWith("USER#") ? id : "USER#$id";
 }
-
   @override
   bool updateShouldNotify(TickinAppScope oldWidget) => false;
 }
