@@ -242,17 +242,6 @@ Future<void> _openTrackingFromFlow(Map<String, dynamic> flow) async {
 
                     final flowKey = safe(f, ["flowKey"]);
 
-                    // ✅ Correct status show (more fallback keys)
-                    final status = safe(f, [
-  "status",
-  "flowStatus",
-  "currentStatus",
-  "orderStatus",
-  "deliveryStatus",     // ❗ fallback keys
-  "tripStatus",
-]).toUpperCase();
-
-
                     final slotTime = safe(f, ["slotTime"]);
                     final vType = safe(f, ["vehicleType"]);
 
@@ -296,7 +285,7 @@ Future<void> _openTrackingFromFlow(Map<String, dynamic> flow) async {
                         subtitle: Text(
                           "Distributor: $mainDist\n"
                           "VehicleType: $vType | Qty: $totalQty | "
-                          "Status: $status\n"
+                      
                           "FlowKey: $trackingId",
                         ),
                         trailing: Wrap(
@@ -325,7 +314,6 @@ Future<void> _openTrackingFromFlow(Map<String, dynamic> flow) async {
                                 slotTime: slotTime,
                                 distributors: distNames,
                                 totalQty: totalQty,
-                                statusFromSlot: status,
                               ),
                             ),
                           );
