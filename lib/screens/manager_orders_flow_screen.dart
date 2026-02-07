@@ -262,7 +262,7 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
       final scope = TickinAppScope.of(context);
       final flowApi = OrdersFlowApi(scope.httpClient);
 
-      final fRes = await flowApi.getOrderFlowByKey(widget.flowKey);
+      final fRes = await flowApi.getOrderFlowByKey(_correctFlowKey());
 
       final f = (fRes["order"] ??
               (fRes["data"]?["order"]) ??
@@ -598,7 +598,7 @@ final st = _s(flowOrder?["status"]).toUpperCase();
   final isDriverAssigned = st == "DRIVER_ASSIGNED";
 final hasVehicle =
     selectedVehicle != null && selectedVehicle!.trim().isNotEmpty;
-    
+
   final canPickVehicle =
       isConfirmed && !isLoadingStarted && !isLoadingDone && !isDriverAssigned;
 

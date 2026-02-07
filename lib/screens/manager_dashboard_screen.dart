@@ -4,11 +4,12 @@ import 'package:book_yours/screens/driver_orders.dart';
 import 'package:book_yours/screens/master_orders_screen.dart';
 import 'package:book_yours/screens/my_orders_screen.dart';
 import 'package:flutter/material.dart';
-
+import '../screens/qr_scan_page.dart';
 import '../app_scope.dart';
 import 'create_order_screen.dart';
 import 'slots/slot_booking_screen.dart';
 import 'login_screen.dart';
+import 'qr_history_page.dart';
 
 // ✅ FIX: import slot confirmed orders list screen
 import 'manager_orders_with_slot_screen.dart';
@@ -257,6 +258,17 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               ),
             );
           }),
+          _cardWithBadge(context, Icons.qr_code_scanner, "QR SCAN PAGE", () {
+            Navigator.push(
+              context,
+               MaterialPageRoute(builder: (_) => const QrScanPage()),
+            );
+            Navigator.push(
+  context,
+  MaterialPageRoute(builder: (_) => const QrHistoryPage()),
+);
+          }),
+          
         ];
 
       // ================= MANAGER =================
@@ -287,6 +299,16 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                 builder: (_) => const ManagerOrdersWithSlotScreen(),
               ),
             );
+          }),
+          _cardWithBadge(context, Icons.qr_code_scanner, "QR SCAN PAGE", () {
+            Navigator.push(
+              context,
+               MaterialPageRoute(builder: (_) => const QrScanPage()),
+            );
+            Navigator.push(
+  context,
+  MaterialPageRoute(builder: (_) => const QrHistoryPage()),
+);
           }),
           // ✅ MANAGER pending orders badge too
           _cardWithBadge(

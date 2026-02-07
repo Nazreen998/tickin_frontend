@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 <uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.CAMERA"/>
 
 <!-- Location Permissions -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -11,10 +12,15 @@
 <!-- IMPORTANT FOR OPPO / VIVO / REALME / REDMI -->
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+
     <application
         android:label="book_yours"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <uses-feature
+        android:name="android.hardware.camera"
+        android:required="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
