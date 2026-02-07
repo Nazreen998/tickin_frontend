@@ -114,7 +114,7 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
 
       if (mounted) {
         setState(() {
-          neatCommon = commonList;
+          neatCommon = filteredCommon;
           preMerge = pre;
         });
       }
@@ -185,49 +185,66 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
     );
   }
 
-  Widget _metaCard() {
-    final distributor = (meta["distributorName"] ?? "-").toString();
-    final vehicleNo = (meta["vehicleNo"] ?? "-").toString();
-    final driver = (meta["driverName"] ?? "-").toString();
-    final st = (meta["status"] ?? "-").toString();
+ Widget _metaCard() {
+  String distributor = _s(meta, [
+    "distributorName",
+    "distributorDisplay",
+    "currentDistributorName",
+    "distName",
+  ]);
 
-    // ✅ show mode line (single vs merged)
-    final isMerged = meta["isMerged"] == true;
-    String mode = "Single (D1 only)";
-    if (isMerged) mode = "Merged (D1 + D2)";
-
-    // If backend sends childOrderIds, show count
-    final kids = (meta["childOrderIds"] is List)
-        ? List.from(meta["childOrderIds"])
-        : const [];
-    if (isMerged && kids.isNotEmpty) {
-      mode = "Merged (${kids.length} orders)";
+  // fallback: meta.distributors[0].distributorName
+  if (distributor.trim().isEmpty && meta["distributors"] is List) {
+    final dList = List.from(meta["distributors"]);
+    if (dList.isNotEmpty && dList.first is Map) {
+      final first = Map<String, dynamic>.from(dList.first);
+      distributor = _s(first, ["distributorName", "name", "distName"]);
     }
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Distributor: $distributor",
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text("Vehicle No: $vehicleNo"),
-            Text("Driver: $driver"),
-            const SizedBox(height: 10),
-            Text("Status: $st",
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text("Mode: $mode", style: TextStyle(color: Colors.grey.shade300)),
-          ],
-        ),
-      ),
-    );
   }
 
+  if (distributor.trim().isEmpty) distributor = "-";
+
+  final vehicleNo = _s(meta, ["vehicleNo", "vehicleType", "vehicle"]);
+  final driver = _s(meta, ["driverName", "driverMobile", "driverId"]);
+  final st = _s(meta, ["status", "flowStatus", "currentStatus"]);
+
+  // ✅ show mode line (single vs merged)
+  final isMerged = meta["isMerged"] == true;
+  String mode = "Single (D1 only)";
+  if (isMerged) mode = "Merged (D1 + D2)";
+
+  // If backend sends childOrderIds, show count
+  final kids = (meta["childOrderIds"] is List)
+      ? List.from(meta["childOrderIds"])
+      : const [];
+
+  if (isMerged && kids.isNotEmpty) {
+    mode = "Merged (${kids.length} orders)";
+  }
+
+  return Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Distributor: $distributor",
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text("Vehicle No: ${vehicleNo.isNotEmpty ? vehicleNo : "-"}"),
+          Text("Driver: ${driver.isNotEmpty ? driver : "-"}"),
+          const SizedBox(height: 10),
+          Text("Status: ${st.isNotEmpty ? st : "-"}",
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text("Mode: $mode", style: TextStyle(color: Colors.grey.shade300)),
+        ],
+      ),
+    ),
+  );
+}
   Widget _timelineCard({
     required String title,
     required List<Map<String, dynamic>> steps,

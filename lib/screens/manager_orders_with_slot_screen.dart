@@ -17,12 +17,13 @@ class ManagerOrdersWithSlotScreen extends StatefulWidget {
       _ManagerOrdersWithSlotScreenState();
 }
 
-class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScreen> {
+class _ManagerOrdersWithSlotScreenState
+    extends State<ManagerOrdersWithSlotScreen> {
   bool loading = false;
   bool loadedOnce = false;
 
   List<Map<String, dynamic>> flows = [];
-                 String selectedDate = DateFormat("yyyy-MM-dd").format(DateTime.now());
+  String selectedDate = DateFormat("yyyy-MM-dd").format(DateTime.now());
 
   void toast(String msg) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -57,46 +58,7 @@ class _ManagerOrdersWithSlotScreenState extends State<ManagerOrdersWithSlotScree
 
     await _load();
   }
-Future<void> _load() async {
-  setState(() => loading = true);
-  try {
-    final scope = TickinAppScope.of(context);
-    final api = OrdersFlowApi(scope.httpClient);
 
-    final res = await api.slotConfirmedOrders(date: selectedDate);
-    final list = (res["orders"] ?? res["data"] ?? []) as List;
-
-    final parsed = list
-        .whereType<Map>()
-        .map((e) => e.cast<String, dynamic>())
-        .toList();
-
-    // ✅ filter should apply on parsed, NOT flows
-    final cleaned = parsed.where((f) {
-      final qty = (f["totalQty"] ?? f["qty"] ?? f["quantity"] ?? 0);
-      final fk = (f["flowKey"] ?? f["orderId"] ?? "").toString();
-
-      final q = (qty is num) ? qty.toInt() : int.tryParse("$qty") ?? 0;
-
-      if (q <= 0) return false;
-      if (fk.startsWith("LOC#")) return false;
-
-      return true;
-    }).toList();
-
-    cleaned.sort((a, b) {
-      final atA = (a["slotTime"] ?? "").toString();
-      final atB = (b["slotTime"] ?? "").toString();
-      return atA.compareTo(atB);
-    });
-
-    setState(() => flows = cleaned);
-  } catch (e) {
-    toast("❌ Load failed: $e");
-  } finally {
-    if (mounted) setState(() => loading = false);
-  }
-}
   String safe(Map o, List<String> keys) {
     for (final k in keys) {
       final v = o[k];
@@ -111,18 +73,148 @@ Future<void> _load() async {
     return num.tryParse(v.toString()) ?? 0;
   }
 
-  void openTracking(String orderId) {
-    if (orderId.isEmpty || orderId == "-") {
-      toast("OrderId missing");
+  /// ✅ Best orderId for tracking (prefer ORD_FULL)
+  String _trackingOrderId(Map<String, dynamic> flow) {
+    // 0) direct full
+    final fullDirect = flow["fullOrderId"] ??
+        flow["masterFullOrderId"] ??
+        flow["masterOrderId"] ??
+        flow["masterOrder"];
+
+    if (fullDirect != null) {
+      final s = fullDirect.toString().trim();
+      if (s.isNotEmpty && s != "null") return s;
+    }
+
+    // 1) merged into
+    final merged = flow["mergedIntoOrderId"] ??
+        flow["mergedInto"] ??
+        flow["finalOrderId"] ??
+        flow["finalOrder"];
+
+    if (merged != null) {
+      final s = merged.toString().trim();
+      if (s.isNotEmpty && s != "null") return s;
+    }
+
+    // 2) orders[] inside
+    final orders =
+        (flow["orders"] is List) ? (flow["orders"] as List) : const [];
+
+    for (final o in orders) {
+      if (o is Map) {
+        final oid = (o["fullOrderId"] ??
+                o["mergedIntoOrderId"] ??
+                o["orderId"] ??
+                o["id"])
+            ?.toString()
+            .trim();
+
+        if (oid != null && oid.isNotEmpty && oid != "null") {
+          if (oid.startsWith("ORD_FULL_")) return oid;
+        }
+      }
+    }
+
+    // 3) orderIds list
+    final list = (flow["orderIds"] is List)
+        ? (flow["orderIds"] as List)
+            .map((e) => e.toString())
+            .where((x) => x.trim().isNotEmpty && x != "null")
+            .toList()
+        : <String>[];
+
+    for (final x in list) {
+      final s = x.trim();
+      if (s.startsWith("ORD_FULL_")) return s;
+    }
+
+    // 4) fallback
+    final fk = flow["flowKey"] ?? flow["orderId"] ?? flow["id"];
+    if (fk != null) {
+      final s = fk.toString().trim();
+      if (s.isNotEmpty && s != "null") return s;
+    }
+
+    return "-";
+  }
+Future<void> _openTrackingFromFlow(Map<String, dynamic> flow) async {
+  try {
+    final fk = safe(flow, ["flowKey"]);
+    if (fk == "-" || fk.isEmpty) {
+      toast("FlowKey missing");
       return;
     }
+
+    final scope = TickinAppScope.of(context);
+    final api = OrdersFlowApi(scope.httpClient);
+
+    final fRes = await api.getOrderFlowByKey(fk);
+
+    final raw = (fRes["order"] ??
+            (fRes["data"]?["order"]) ??
+            fRes["data"] ??
+            fRes);
+
+    // parse as map safely
+    final Map<String, dynamic>? fullFlow =
+        (raw is Map) ? Map<String, dynamic>.from(raw) : null;
+
+    final ordFull = (fullFlow?["orderId"] ??
+            fullFlow?["fullOrderId"] ??
+            "").toString().trim();
+
+    final trackingId = (ordFull.isNotEmpty && ordFull != "null")
+        ? ordFull
+        : fk; // fallback
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => OrderUnifiedTrackingScreen(orderId: orderId),
+        builder: (_) => OrderUnifiedTrackingScreen(orderId: trackingId),
       ),
     );
+  } catch (e) {
+    toast("❌ Tracking failed: $e");
+  }
+}
+
+  Future<void> _load() async {
+    setState(() => loading = true);
+    try {
+      final scope = TickinAppScope.of(context);
+      final api = OrdersFlowApi(scope.httpClient);
+
+      final res = await api.slotConfirmedOrders(date: selectedDate);
+      final list = (res["orders"] ?? res["data"] ?? []) as List;
+
+      final parsed = list
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+
+      // ✅ DO NOT REMOVE SINGLE ORDER FLOWS
+      final cleaned = parsed.where((f) {
+  final fk = (f["flowKey"] ?? f["orderId"] ?? "").toString().trim();
+  if (fk.isEmpty) return false;
+  
+  // always include item unless LOC#
+  if (fk.startsWith("LOC#")) return false;
+
+  return true;
+}).toList();
+      cleaned.sort((a, b) {
+        final atA = (a["slotTime"] ?? "").toString();
+        final atB = (b["slotTime"] ?? "").toString();
+        return atA.compareTo(atB);
+      });
+
+      setState(() => flows = cleaned);
+    } catch (e) {
+      toast("❌ Load failed: $e");
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override
@@ -131,7 +223,10 @@ Future<void> _load() async {
       appBar: AppBar(
         title: const Text("Slot Confirmed Orders"),
         actions: [
-          IconButton(icon: const Icon(Icons.calendar_month), onPressed: _pickDate),
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            onPressed: _pickDate,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
@@ -146,22 +241,38 @@ Future<void> _load() async {
                     final f = flows[i];
 
                     final flowKey = safe(f, ["flowKey"]);
+
+                    // ✅ Correct status show (more fallback keys)
+                    final status = safe(f, [
+  "status",
+  "flowStatus",
+  "currentStatus",
+  "orderStatus",
+  "deliveryStatus",     // ❗ fallback keys
+  "tripStatus",
+]).toUpperCase();
+
+
                     final slotTime = safe(f, ["slotTime"]);
-                    final status = safe(f, ["status"]);
                     final vType = safe(f, ["vehicleType"]);
 
                     final orderIds = (f["orderIds"] ?? []) as List;
                     final distributors = (f["distributors"] ?? []) as List;
 
                     final totalQty = numSafe(f["totalQty"]);
-                   
-                    final firstOrderId =
-                        orderIds.isNotEmpty ? orderIds.first.toString() : "-";
+
+                    // ✅ For manager screen
+                    final firstOrderId = _trackingOrderId(f);
+
+                    // ✅ For tracking icon (same id)
+                    final trackingId = _trackingOrderId(f);
 
                     final distNames = <String>[];
                     for (final d in distributors) {
                       if (d is Map) {
-                        final name = (d["distributorName"] ?? d["name"] ?? "").toString();
+                        final name =
+                            (d["distributorName"] ?? d["name"] ?? "")
+                                .toString();
                         if (name.trim().isNotEmpty) distNames.add(name);
                       } else if (d != null) {
                         final name = d.toString();
@@ -169,8 +280,12 @@ Future<void> _load() async {
                       }
                     }
 
-                   final mainDist = distNames.isNotEmpty ? distNames.asMap().entries.map((e) => "D${e.key + 1}: ${e.value}").join(" | ")
-    : "-";
+                    final mainDist = distNames.isNotEmpty
+                        ? distNames.asMap().entries
+                            .map((e) => "D${e.key + 1}: ${e.value}")
+                            .join(" | ")
+                        : "-";
+
                     return Card(
                       elevation: 2,
                       child: ListTile(
@@ -180,9 +295,9 @@ Future<void> _load() async {
                         ),
                         subtitle: Text(
                           "Distributor: $mainDist\n"
-                          "VehicleType: $vType | Qty: $totalQty |"
+                          "VehicleType: $vType | Qty: $totalQty | "
                           "Status: $status\n"
-                          "FlowKey: $flowKey",
+                          "FlowKey: $trackingId",
                         ),
                         trailing: Wrap(
                           spacing: 8,
@@ -190,7 +305,7 @@ Future<void> _load() async {
                             IconButton(
                               tooltip: "Tracking",
                               icon: const Icon(Icons.track_changes),
-                              onPressed: () => openTracking(firstOrderId),
+                              onPressed: () =>_openTrackingFromFlow(f),
                             ),
                             const Icon(Icons.arrow_forward_ios, size: 16),
                           ],
@@ -205,8 +320,8 @@ Future<void> _load() async {
                             context,
                             MaterialPageRoute(
                               builder: (_) => ManagerOrderFlowScreen(
-                                flowKey: flowKey,
-                                orderId: firstOrderId,
+                                flowKey: flowKey, // backend flowKey
+                                orderId: firstOrderId, // ORD_FULL if available
                                 slotTime: slotTime,
                                 distributors: distNames,
                                 totalQty: totalQty,

@@ -1,4 +1,4 @@
-// ignore_for_file: control_flow_in_finally, unused_element
+// ignore_for_file: control_flow_in_finally, unused_element, avoid_print
 
 import 'dart:io';
 import 'package:flutter/material.dart';

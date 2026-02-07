@@ -387,7 +387,6 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               ),
             );
           }),
-          _cardWithBadge(context, Icons.track_changes, "Tracking", () {}),
         ];
       // ================= SALES OFFICER VNR =================
       case UserRole.salesOfficerVnr:
