@@ -30,11 +30,11 @@ class TokenStore {
 
   // ✅ DRIVER ID (FINAL & CORRECT)
   Future<String?> get userId async {
-  final jsonStr = await getUserJson();
-  if (jsonStr == null || jsonStr.isEmpty) return null;
+  final json = await getUserJson();
+  if (json == null || json.isEmpty) return null;
 
-  final map = jsonDecode(jsonStr);
-  return (map["id"] ?? map["phone"] ?? "").toString();
+  final map = jsonDecode(json);
+  return map["userId"];
 }
   // ✅ CLEAR ALL
   Future<void> clear() async {

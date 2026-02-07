@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype
+// ignore_for_file: deprecated_member_use, unused_import, prefer_iterable_wheretype, avoid_print
 
 import 'package:flutter/material.dart';
 import '../app_scope.dart';
@@ -32,49 +32,29 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
       SnackBar(content: Text(m)),
     );
   }
+Future<void> _load() async {
+  setState(() => loading = true);
 
-  Future<void> _load() async {
-    setState(() => loading = true);
-    try {
-      final scope = TickinAppScope.of(context);
-      final res = await scope.ordersApi.getDriverAssignedOrders();
+  try {
+    final scope = TickinAppScope.of(context);
+    final driverId = await scope.driverId;
 
-      dynamic raw = res["orders"] ?? res["items"] ?? res["data"] ?? res;
-      if (raw is Map) {
-        raw = raw["orders"] ?? raw["items"] ?? raw["data"] ?? [];
-      }
-
-      final list = raw is List ? raw : [];
-
-      setState(() {
-        orders = list
-    .where((e) {
-      if (e is! Map) return false;
-
-      final m = Map<String, dynamic>.from(e);
-
-      final status = (m["status"] ?? "").toString().toUpperCase();
-      final oid = (m["orderId"] ?? "").toString();
-
-      // ❌ hide merged child orders
-      if (status == "MERGED") return false;
-
-      // ❌ show only FULL order for merged flows
-      if (oid.startsWith("ORD_FULL_")) return true;
-
-      // ✅ allow normal single orders also
-      return status != "MERGED";
-    })
-    .map((e) => Map<String, dynamic>.from(e))
-    .toList();
-
-      });
-    } catch (e) {
-      toast("❌ Load failed");
-    } finally {
-      if (mounted) setState(() => loading = false);
+    if (driverId.isEmpty) {
+      throw Exception("DriverId missing from token");
     }
+
+    final list = await scope.driverApi.getDriverOrders(driverId);
+
+    setState(() {
+      orders = list;
+    });
+  } catch (e) {
+    print("❌ DRIVER LOAD ERROR => $e");
+    toast("❌ Load failed");
+  } finally {
+    if (mounted) setState(() => loading = false);
   }
+}
 
   String _safe(Map o, List<String> keys) {
     for (final k in keys) {

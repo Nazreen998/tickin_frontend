@@ -67,6 +67,7 @@ class _AuthGateState extends State<AuthGate> {
     try {
       final userMap = jsonDecode(userJson) as Map<String, dynamic>;
       final role = (userMap["role"] ?? "").toString().toUpperCase();
+      
       final userRole = mapRole(role); // ✅ from login_screen.dart
 
       return ManagerDashboardScreen(role: userRole);
