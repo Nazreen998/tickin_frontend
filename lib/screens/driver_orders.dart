@@ -28,33 +28,32 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
 
   void toast(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(m)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
-Future<void> _load() async {
-  setState(() => loading = true);
 
-  try {
-    final scope = TickinAppScope.of(context);
-    final driverId = await scope.driverId;
+  Future<void> _load() async {
+    setState(() => loading = true);
 
-    if (driverId.isEmpty) {
-      throw Exception("DriverId missing from token");
+    try {
+      final scope = TickinAppScope.of(context);
+      final driverId = await scope.driverId;
+
+      if (driverId.isEmpty) {
+        throw Exception("DriverId missing from token");
+      }
+
+      final list = await scope.driverApi.getDriverOrders(driverId);
+
+      setState(() {
+        orders = list;
+      });
+    } catch (e) {
+      print("❌ DRIVER LOAD ERROR => $e");
+      toast("❌ Load failed");
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
-
-    final list = await scope.driverApi.getDriverOrders(driverId);
-
-    setState(() {
-      orders = list;
-    });
-  } catch (e) {
-    print("❌ DRIVER LOAD ERROR => $e");
-    toast("❌ Load failed");
-  } finally {
-    if (mounted) setState(() => loading = false);
   }
-}
 
   String _safe(Map o, List<String> keys) {
     for (final k in keys) {
@@ -99,10 +98,9 @@ Future<void> _load() async {
     try {
       final driverId = await scope.driverId;
 
-      final res = await DriverApi(scope.httpClient).deleteOrder(
-        orderId: orderId,
-        driverId: driverId,
-      );
+      final res = await DriverApi(
+        scope.httpClient,
+      ).deleteOrder(orderId: orderId, driverId: driverId);
 
       if (res["ok"] != true) {
         throw Exception(res["message"] ?? "Delete failed");
@@ -121,97 +119,79 @@ Future<void> _load() async {
       appBar: AppBar(
         title: const Text("My Orders"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : orders.isEmpty
-              ? const Center(child: Text("No orders found"))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    itemCount: orders.length,
-                    itemBuilder: (_, i) {
-                      final o = orders[i];
+          ? const Center(child: Text("No orders found"))
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.builder(
+                itemCount: orders.length,
+                itemBuilder: (_, i) {
+                  final o = orders[i];
 
-                      final orderId = _safe(o, ["orderId", "id"]);
-                      final status = _safe(o, ["status"]);
-                      final distributor = _safe(o, [
-                        "distributorName",
-                        "agencyName",
-                        "distributorId",
-                      ]);
+                  final orderId = _safe(o, ["orderId", "id"]);
+                  final status = _safe(o, ["status"]);
+                  final distributor = _safe(o, [
+                    "distributorName",
+                    "agencyName",
+                    "distributorId",
+                  ]);
 
-                      final amount = _num(
-                        o["amount"] ??
-                            o["totalAmount"] ??
-                            o["grandTotal"],
-                      ).toDouble();
+                  final amount = _num(
+                    o["amount"] ?? o["totalAmount"] ?? o["grandTotal"],
+                  ).toDouble();
 
-                      final createdAt = _safe(o, [
-                        "createdAt",
-                        "created_at",
-                        "date",
-                      ]);
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        child: ListTile(
-                          title: Text(
-                            distributor,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: ListTile(
+                      title: Text(
+                        distributor,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text("Order: $orderId\nStatus: $status"),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "₹${amount.toStringAsFixed(0)}",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton.icon(
+                            onPressed: () => _deleteOrder(i, o),
+                            icon: const Icon(Icons.delete),
+                            label: const Text("DELETE"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
                             ),
                           ),
-                          subtitle: Text(
-                            "Order: $orderId\nStatus: $status\nDate: $createdAt",
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                "₹${amount.toStringAsFixed(0)}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              ElevatedButton.icon(
-                                onPressed: () => _deleteOrder(i, o),
-                                icon: const Icon(Icons.delete),
-                                label: const Text("DELETE"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                          onTap: () {
-                            if (orderId.isEmpty || orderId == "-") {
-                              toast("❌ OrderId missing");
-                              return;
-                            }
+                        ],
+                      ),
+                      onTap: () {
+                        if (orderId.isEmpty || orderId == "-") {
+                          toast("❌ OrderId missing");
+                          return;
+                        }
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    DriverOrderFlowScreen(order: o),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DriverOrderFlowScreen(order: o),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

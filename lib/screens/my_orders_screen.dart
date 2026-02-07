@@ -22,7 +22,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   List<Map<String, dynamic>> orders = [];
 
   String role = "";
-  String selectedStatus = "CONFIRMED";
+  String? selectedStatus;
   String selectedDate = DateFormat("yyyy-MM-dd").format(DateTime.now());
 
   @override
@@ -80,8 +80,14 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       final scope = TickinAppScope.of(context);
 
       final res = isManager
-          ? await scope.ordersApi.all(status: selectedStatus)
-          : await scope.ordersApi.my();
+          ? await scope.ordersApi.all(
+              status: selectedStatus, // or null if not needed
+              date: selectedDate,
+            )
+          : await scope.ordersApi.my(
+              status: selectedStatus, // or null if not needed
+              date: selectedDate,
+            );
 
       dynamic raw = res["orders"] ?? res["items"] ?? res["data"] ?? res;
       if (raw is Map) raw = raw["orders"] ?? raw["items"] ?? raw["data"] ?? [];
