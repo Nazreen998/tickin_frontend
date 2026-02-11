@@ -13,7 +13,8 @@ class OrderUnifiedTrackingScreen extends StatefulWidget {
       _OrderUnifiedTrackingScreenState();
 }
 
-class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen> {
+class _OrderUnifiedTrackingScreenState
+    extends State<OrderUnifiedTrackingScreen> {
   bool loading = false;
 
   Map<String, dynamic> meta = {};
@@ -44,7 +45,8 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
     final s = raw.trim();
 
     // If already like "10 Jan 2026, 05:28 PM" keep it
-    final looksPretty = RegExp(r"[A-Za-z]{3}").hasMatch(s) &&
+    final looksPretty =
+        RegExp(r"[A-Za-z]{3}").hasMatch(s) &&
         RegExp(r"\bAM\b|\bPM\b", caseSensitive: false).hasMatch(s);
     if (looksPretty) return s;
 
@@ -94,12 +96,7 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
       final preRaw = res["preMerge"];
       final Map<String, List<Map<String, dynamic>>> pre = {};
       final isMerged = (meta["isMerged"] == true) || pre.isNotEmpty;
-      final filteredCommon = isMerged
-    ? commonList
-    : commonList.where((s) {
-        final k = (s["key"] ?? "").toString().toUpperCase();
-        return !k.contains("_D2");
-      }).toList();
+      neatCommon = commonList;
 
       if (preRaw is Map) {
         preRaw.forEach((key, value) {
@@ -167,7 +164,9 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
                   _timelineCard(
                     title: "Tracking Timeline",
                     steps: neatCommon,
-                    subtitle: isMerged ? "Common (FULL order)" : "Single (D1 only)",
+                    subtitle: isMerged
+                        ? "Common (FULL order)"
+                        : "Single (D1 only)",
                   ),
                 ],
               ),
@@ -212,14 +211,18 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Distributor: $distributor",
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              "Distributor: $distributor",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 6),
             Text("Vehicle No: $vehicleNo"),
             Text("Driver: $driver"),
             const SizedBox(height: 10),
-            Text("Status: $st",
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              "Status: $st",
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             Text("Mode: $mode", style: TextStyle(color: Colors.grey.shade300)),
           ],
@@ -305,8 +308,9 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
                             title,
                             style: TextStyle(
                               fontSize: 15,
-                              fontWeight:
-                                  current ? FontWeight.bold : FontWeight.w600,
+                              fontWeight: current
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
                               color: done || current
                                   ? Colors.white
                                   : Colors.grey.shade400,
@@ -318,8 +322,9 @@ class _OrderUnifiedTrackingScreenState extends State<OrderUnifiedTrackingScreen>
                             style: TextStyle(
                               fontSize: 12,
                               color: dotColor,
-                              fontWeight:
-                                  current ? FontWeight.bold : FontWeight.w500,
+                              fontWeight: current
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                             ),
                           ),
                           if (time.isNotEmpty)
