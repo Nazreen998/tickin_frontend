@@ -262,7 +262,7 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
       final scope = TickinAppScope.of(context);
       final flowApi = OrdersFlowApi(scope.httpClient);
 
-      final fRes = await flowApi.getOrderFlowByKey(widget.flowKey);
+      final fRes = await flowApi.getOrderFlowByKey(_correctFlowKey());
 
       final f = (fRes["order"] ??
               (fRes["data"]?["order"]) ??
@@ -598,7 +598,7 @@ final st = _s(flowOrder?["status"]).toUpperCase();
   final isDriverAssigned = st == "DRIVER_ASSIGNED";
 final hasVehicle =
     selectedVehicle != null && selectedVehicle!.trim().isNotEmpty;
-    
+
   final canPickVehicle =
       isConfirmed && !isLoadingStarted && !isLoadingDone && !isDriverAssigned;
 
@@ -729,43 +729,79 @@ final hasVehicle =
                 ),
                 const SizedBox(height: 12),
               ],
+             // ✅ ASSIGN DRIVER DROPDOWN
+if (canAssignDriver)
+  Card(
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: DropdownButtonFormField<String>(
+        value: (cleanedDriver != null &&
+                drivers.any((d) => _driverId(d).trim() == cleanedDriver))
+            ? cleanedDriver
+            : null,
+        decoration: const InputDecoration(
+          labelText: "Assign Driver",
+          border: OutlineInputBorder(),
+        ),
+        items: drivers.map((d) {
+          final id = _driverId(d).trim();
+          final name = _driverName(d);
+          return DropdownMenuItem(value: id, child: Text(name));
+        }).toList(),
+        onChanged: (id) {
+          if (id == null) return;
+          _assignDriver(id);
+        },
+      ),
+    ),
+  ),
 
-              // ✅ ASSIGN DRIVER DROPDOWN
-              if (canAssignDriver)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: DropdownButtonFormField<String>(
-                      value: (cleanedDriver != null &&
-                              drivers.any((d) =>
-                                  _driverId(d).trim() == cleanedDriver))
-                          ? cleanedDriver
-                          : null,
-                      decoration: const InputDecoration(
-                        labelText: "Assign Driver",
-                        border: OutlineInputBorder(),
-                      ),
-                      items: drivers.map((d) {
-                        final id = _driverId(d).trim();
-                        final name = _driverName(d);
-                        return DropdownMenuItem(value: id, child: Text(name));
-                      }).toList(),
-                      onChanged: (id) {
-                        if (id == null) return;
-                        _assignDriver(id);
-                      },
-                    ),
-                  ),
-                ),
-
-              if (isDriverAssigned)
-                const Padding(
-                  padding: EdgeInsets.only(top: 12),
-                  child: Text(
-                    "✅ Driver Assigned",
-                    style: TextStyle(fontWeight: FontWeight.bold ),
-                  ),
-                ),
+// ✅ DRIVER DETAILS CARD (SHOW ALWAYS IF DRIVER EXISTS)
+if (_s(f["driverName"]).trim().isNotEmpty ||
+    _s(f["driverMobile"]).trim().isNotEmpty ||
+    _s(f["driverId"]).trim().isNotEmpty)
+  Card(
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Driver Details",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Text("Driver Name: ${_s(f["driverName"]).isNotEmpty ? _s(f["driverName"]) : "-"}"),
+          Text("Driver Mobile: ${_s(f["driverMobile"]).isNotEmpty ? _s(f["driverMobile"]) : "-"}"),
+          Text("Vehicle No: ${_s(f["vehicleNo"]).isNotEmpty ? _s(f["vehicleNo"]) : "-"}"),
+          const SizedBox(height: 8),
+          Text(
+            "Status: ${_s(f["status"]).toUpperCase()}",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    ),
+  ),
+  if (isDriverAssigned)
+  Card(
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "✅ Driver Assigned",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Text("Driver Name: ${_s(f["driverName"]).isNotEmpty ? _s(f["driverName"]) : "-"}"),
+          Text("Driver Mobile: ${_s(f["driverMobile"]).isNotEmpty ? _s(f["driverMobile"]) : "-"}"),
+          Text("Vehicle No: ${_s(f["vehicleNo"]).isNotEmpty ? _s(f["vehicleNo"]) : (selectedVehicle ?? "-")}"),
+        ],
+      ),
+    ),
+  ),
             ],
           ),
   );

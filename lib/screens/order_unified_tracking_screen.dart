@@ -111,7 +111,7 @@ class _OrderUnifiedTrackingScreenState
 
       if (mounted) {
         setState(() {
-          neatCommon = commonList;
+          neatCommon = neatCommon;
           preMerge = pre;
         });
       }
@@ -185,10 +185,27 @@ class _OrderUnifiedTrackingScreenState
   }
 
   Widget _metaCard() {
-    final distributor = (meta["distributorName"] ?? "-").toString();
-    final vehicleNo = (meta["vehicleNo"] ?? "-").toString();
-    final driver = (meta["driverName"] ?? "-").toString();
-    final st = (meta["status"] ?? "-").toString();
+    String distributor = _s(meta, [
+      "distributorName",
+      "distributorDisplay",
+      "currentDistributorName",
+      "distName",
+    ]);
+
+    // fallback: meta.distributors[0].distributorName
+    if (distributor.trim().isEmpty && meta["distributors"] is List) {
+      final dList = List.from(meta["distributors"]);
+      if (dList.isNotEmpty && dList.first is Map) {
+        final first = Map<String, dynamic>.from(dList.first);
+        distributor = _s(first, ["distributorName", "name", "distName"]);
+      }
+    }
+
+    if (distributor.trim().isEmpty) distributor = "-";
+
+    final vehicleNo = _s(meta, ["vehicleNo", "vehicleType", "vehicle"]);
+    final driver = _s(meta, ["driverName", "driverMobile", "driverId"]);
+    final st = _s(meta, ["status", "flowStatus", "currentStatus"]);
 
     // ✅ show mode line (single vs merged)
     final isMerged = meta["isMerged"] == true;
@@ -199,6 +216,7 @@ class _OrderUnifiedTrackingScreenState
     final kids = (meta["childOrderIds"] is List)
         ? List.from(meta["childOrderIds"])
         : const [];
+
     if (isMerged && kids.isNotEmpty) {
       mode = "Merged (${kids.length} orders)";
     }
@@ -216,11 +234,11 @@ class _OrderUnifiedTrackingScreenState
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
-            Text("Vehicle No: $vehicleNo"),
-            Text("Driver: $driver"),
+            Text("Vehicle No: ${vehicleNo.isNotEmpty ? vehicleNo : "-"}"),
+            Text("Driver: ${driver.isNotEmpty ? driver : "-"}"),
             const SizedBox(height: 10),
             Text(
-              "Status: $st",
+              "Status: ${st.isNotEmpty ? st : "-"}",
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),

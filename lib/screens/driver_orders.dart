@@ -44,8 +44,14 @@ class _DriverOrdersScreenState extends State<DriverOrdersScreen> {
 
       final list = await scope.driverApi.getDriverOrders(driverId);
 
+final filtered = list.where((o) {
+  final id = (o["orderId"] ?? o["id"] ?? "").toString().trim();
+  return id.startsWith("ORD_FULL_"); // ✅ only FULL orders
+}).toList();
+
       setState(() {
-        orders = list;
+        orders = filtered;
+
       });
     } catch (e) {
       print("❌ DRIVER LOAD ERROR => $e");
