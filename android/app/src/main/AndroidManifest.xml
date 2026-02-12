@@ -20,7 +20,7 @@
         android:required="true" />
 
     <application
-        android:label="book_yours"
+        android:label="TrackON"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

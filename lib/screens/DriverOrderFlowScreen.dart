@@ -50,7 +50,9 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
       throw Exception("Location permission denied forever");
     }
 
-    return Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    return Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
   /* ---------------- api helpers ---------------- */
@@ -105,6 +107,20 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
     }
   }
 
+  int get currentStopIndex =>
+      int.tryParse(order["currentDistributorIndex"]?.toString() ?? "0") ?? 0;
+
+  List get distributors =>
+      (order["distributors"] is List) ? List.from(order["distributors"]) : [];
+
+  int get totalStops => distributors.length;
+
+  int stopFromStatus() {
+    final m = RegExp(r"STOP_(\d+)").firstMatch(status);
+    if (m == null) return currentStopIndex + 1;
+    return int.tryParse(m.group(1) ?? "1") ?? 1;
+  }
+
   /* ---------------- UI helpers ---------------- */
 
   Widget _actionButton({
@@ -136,78 +152,90 @@ class _DriverOrderFlowScreenState extends State<DriverOrderFlowScreen> {
 
   /* ---------------- button logic ---------------- */
 
- Widget _buildActions() {
-  final s = status;
+  Widget _buildActions() {
+    final s = status;
 
-  // ✅ DRIVER_ASSIGNED / DRIVER_STARTED (canonical)
-  if (s == "DRIVER_ASSIGNED") {
-    return _actionButton(
-      label: "▶️ Start Trip",
-      onTap: () => _updateStatus("DRIVER_STARTED"),
-      color: Colors.green,
-    );
-  }
+    if (s == "DRIVER_ASSIGNED") {
+      return _actionButton(
+        label: "▶️ Start Trip",
+        onTap: () => _updateStatus("DRIVER_STARTED"),
+        color: Colors.green,
+      );
+    }
 
-  if (s == "DRIVER_STARTED" || s == "DRIVE_STARTED") {
-    return _actionButton(
-      label: "📍 Reach Distributor",
-      onTap: () => _updateStatus("DRIVER_REACHED_DISTRIBUTOR", withLocation: true),
-      color: Colors.orange,
-    );
-  }
+    if (s == "DRIVER_STARTED" || s == "DRIVE_STARTED") {
+      return _actionButton(
+        label: "📍 Reach Stop ${currentStopIndex + 1}",
+        onTap: () =>
+            _updateStatus("DRIVER_REACHED_DISTRIBUTOR", withLocation: true),
+        color: Colors.orange,
+      );
+    }
 
-  // ✅ reached D1/D2
-  if (s.startsWith("REACHED_D") || s == "DRIVER_REACHED_DISTRIBUTOR") {
-    return _actionButton(
-      label: "📦 Start Unload",
-      onTap: () => _updateStatus("UNLOAD_START"),
-      color: Colors.blueGrey,
-    );
-  }
+    // ✅ reached stop (supports STOP_1, STOP_2, old D1/D2 also)
+    if (s.startsWith("REACHED_STOP_")) {
+      final stopNo = stopFromStatus();
 
-  // ✅ unloading start D1/D2
-  if (s.startsWith("UNLOADING_START_D") || s == "UNLOAD_START") {
-    return _actionButton(
-      label: "✅ End Unload",
-      onTap: () => _updateStatus("UNLOAD_END"),
-      color: Colors.indigo,
-    );
-  }
+      return _actionButton(
+        label: "📦 Start Unload (Stop $stopNo)",
+        onTap: () => _updateStatus("UNLOAD_START"),
+        color: Colors.blueGrey,
+      );
+    }
 
-  // ✅ unloading end D1/D2
-  if (s.startsWith("UNLOADING_END_D") || s == "UNLOAD_END") {
-    return Column(
-      children: [
-        _actionButton(
-          label: "📍 Reach Next Distributor",
-          onTap: () => _updateStatus("DRIVER_REACHED_DISTRIBUTOR", withLocation: true),
+    // ✅ unloading started
+    if (s.startsWith("UNLOADING_START_STOP_")) {
+      final stopNo = stopFromStatus();
+
+      return _actionButton(
+        label: "✅ End Unload (Stop $stopNo)",
+        onTap: () => _updateStatus("UNLOAD_END"),
+        color: Colors.indigo,
+      );
+    }
+
+    // ✅ unloading ended
+    if (s.startsWith("UNLOADING_END_STOP_")) {
+      final stopNo = stopFromStatus();
+
+      if (stopNo < totalStops) {
+        return _actionButton(
+          label: "📍 Reach Stop ${stopNo + 1}",
+          onTap: () =>
+              _updateStatus("DRIVER_REACHED_DISTRIBUTOR", withLocation: true),
           color: Colors.orange,
+        );
+      }
+
+      return _actionButton(
+        label: "🏭 Reach Warehouse",
+        onTap: () => _updateStatus("WAREHOUSE_REACHED"),
+        color: Colors.red,
+      );
+    }
+
+    if (s == "WAREHOUSE_REACHED") {
+      return _actionButton(
+        label: "✅ Complete Delivery",
+        onTap: () => _updateStatus("DELIVERY_COMPLETED"),
+        color: Colors.green,
+      );
+    }
+
+    if (s == "DELIVERY_COMPLETED") {
+      return const Text(
+        "🎉 Trip Completed",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.green,
         ),
-        const SizedBox(height: 10),
-        _actionButton(
-          label: "🏭 Reach Warehouse",
-          onTap: () => _updateStatus("WAREHOUSE_REACHED"),
-          color: Colors.red,
-        ),
-      ],
-    );
+      );
+    }
+
+    return const Text("No actions available");
   }
 
-  if (s == "WAREHOUSE_REACHED") {
-    return _actionButton(
-      label: "✅ Complete Delivery",
-      onTap: () => _updateStatus("DELIVERY_COMPLETED"),
-      color: Colors.green,
-    );
-  }
-
-  if (s == "DELIVERY_COMPLETED") {
-    return const Text("🎉 Trip Completed",
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green));
-  }
-
-  return const Text("No actions available");
-}
   /* ---------------- build ---------------- */
 
   @override
