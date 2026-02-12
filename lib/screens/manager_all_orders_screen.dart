@@ -154,9 +154,8 @@ Future<void> _cancelBookedSlot(Map<String, dynamic> o) async {
     toast("❌ OrderId missing");
     return;
   }
-
   // ✅ these keys must come from backend orders list (important!)
-final companyCode = (o["ompanyCode"] ?? "").toString().trim();
+final companyCode = (o["companyCode"] ?? "").toString().trim();
 final slotDate = (o["slotDate"] ?? "").toString().trim();
 final slotTime = (o["slotTime"] ?? "").toString().trim();
 final slotPos  = (o["slotPos"] ?? o["pos"] ?? "").toString().trim();
