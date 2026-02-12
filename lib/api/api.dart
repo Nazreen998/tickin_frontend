@@ -5,32 +5,33 @@ class Api {
   static const String baseUrl = "https://tickin-backend.onrender.com";
 
   // ✅ Common POST JSON helper
-static Future<Map<String, dynamic>> postJson(
-  String path,
-  Map<String, dynamic> body,
-) async {
-  final url = Uri.parse("$baseUrl$path");
+  static Future<Map<String, dynamic>> postJson(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final url = Uri.parse("$baseUrl$path");
 
-  final res = await http.post(
-    url,
-    headers: {"Content-Type": "application/json"},
-    body: jsonEncode(body),
-  );
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(body),
+    );
 
-  final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
 
-  if (res.statusCode == 200) return decoded;
-  throw Exception(decoded["message"] ?? "Error");
-}
-static Future<Map<String, dynamic>> getProducts() async {
-  final url = Uri.parse("$baseUrl/api/products");
-  final res = await http.get(url);
+    if (res.statusCode == 200) return decoded;
+    throw Exception(decoded["message"] ?? "Error");
+  }
 
-  final body = jsonDecode(res.body) as Map<String, dynamic>;
-  if (res.statusCode == 200) return body;
+  static Future<Map<String, dynamic>> getProducts() async {
+    final url = Uri.parse("$baseUrl/api/products");
+    final res = await http.get(url);
 
-  throw Exception(body["message"] ?? "Error");
-}
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 200) return body;
+
+    throw Exception(body["message"] ?? "Error");
+  }
 
   static Future<Map<String, dynamic>> getQrItem(String qrName) async {
     final url = Uri.parse("$baseUrl/qr/$qrName");

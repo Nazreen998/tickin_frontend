@@ -1,6 +1,6 @@
 class ApiConfig {
   /// 🔵 Base backend URL
-  static const String baseUrl = "https://tickin-backend-8y4m.onrender.com";
+  static const String baseUrl = "https://tickin-backend.onrender.com";
 
   /// 🔐 Auth
   static const String auth = "/api/auth";
