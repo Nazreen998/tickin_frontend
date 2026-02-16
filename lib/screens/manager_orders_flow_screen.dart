@@ -42,24 +42,11 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
   String? selectedVehicle;
   String? selectedDriverId;
   // 🔥 PASTE HERE 👇
-  String _correctFlowKey() {
-    final fromApi =
-        flowOrder?["trackingOrderId"] ??
-        flowOrder?["masterOrderId"] ??
-        flowOrder?["flowKey"];
-
-    if (fromApi != null && fromApi.toString().startsWith("ORD_FULL_")) {
-      return fromApi.toString();
-    }
-
-    if (widget.flowKey.startsWith("ORD") &&
-        !widget.flowKey.startsWith("ORD_FULL_")) {
-      return "ORD_FULL_${widget.flowKey.replaceFirst("ORD", "")}";
-    }
-
-    return widget.flowKey;
-  }
-
+String _correctFlowKey() {
+  // Always prefer widget.flowKey (it is the real flow key from list screen)
+  final fk = widget.flowKey.toString().trim();
+  return fk;
+}
   List<String> vehicles = [];
   List<Map<String, dynamic>> drivers = [];
   
@@ -132,12 +119,13 @@ class _ManagerOrderFlowScreenState extends State<ManagerOrderFlowScreen> {
         o["distributor"] ??
         o["distName"]);
 
-    // ✅ fallback: distributor details இல்லனா orderId use பண்ணு
+    // ✅ fallback: distributor details orderId use 
     final orderId = _s(o["orderId"] ?? o["pk"]);
-
-    final key = id.trim().isNotEmpty
+final key = orderId.trim().isNotEmpty
+    ? orderId.trim()                     // ✅ each order unique
+    : (id.trim().isNotEmpty
         ? id.trim()
-        : (name.trim().isNotEmpty ? name.trim().toUpperCase() : orderId);
+        : (name.trim().isNotEmpty ? name.trim().toUpperCase() : ""));
 
     if (key.trim().isEmpty) continue;
 

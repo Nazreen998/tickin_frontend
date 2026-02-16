@@ -25,6 +25,9 @@ class _OrderUnifiedTrackingScreenState
   // ✅ Pre-merge timelines (D1/D2) keyed by childOrderId
   Map<String, List<Map<String, dynamic>>> preMerge = {};
 
+  // 🔥 store resolved orderId (FULL) for title + refresh
+  String resolvedOrderId = "";
+
   @override
   void initState() {
     super.initState();
@@ -39,15 +42,18 @@ class _OrderUnifiedTrackingScreenState
     });
   }
 
-  // ✅ IST formatter: backend already sends IST string, but keep safe handling.
+  /// ✅ Safe time format
+  /// Backend already sends IST string like "14 Feb 2026, 11:11 PM"
+  /// so just return it.
   String formatIST(String? raw) {
     if (raw == null || raw.trim().isEmpty) return "";
     final s = raw.trim();
 
-    // If already like "10 Jan 2026, 05:28 PM" keep it
+    // if already pretty, keep it
     final looksPretty =
         RegExp(r"[A-Za-z]{3}").hasMatch(s) &&
         RegExp(r"\bAM\b|\bPM\b", caseSensitive: false).hasMatch(s);
+
     if (looksPretty) return s;
 
     // else parse ISO -> local
@@ -70,50 +76,79 @@ class _OrderUnifiedTrackingScreenState
   bool _isDone(String s) => s.toUpperCase() == "DONE";
   bool _isCurrent(String s) => s.toUpperCase() == "CURRENT";
 
+  void _applyTimeline(Map<String, dynamic> res, String currentOrderId) {
+    final metaRaw = res["meta"];
+    final newMeta =
+        (metaRaw is Map) ? Map<String, dynamic>.from(metaRaw) : {};
+
+    // ✅ neatTimeline
+    dynamic neatRaw = res["neatTimeline"];
+    if (neatRaw is Map) neatRaw = neatRaw["neatTimeline"];
+
+    final commonList = (neatRaw is List ? neatRaw : [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    // ✅ preMerge
+    final preRaw = res["preMerge"];
+    final Map<String, List<Map<String, dynamic>>> pre = {};
+
+    if (preRaw is Map) {
+      preRaw.forEach((key, value) {
+        final k = key.toString();
+        final list = (value is List ? value : [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        if (list.isNotEmpty) pre[k] = list;
+      });
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      resolvedOrderId = currentOrderId;
+      meta = newMeta;
+      neatCommon = commonList;
+      preMerge = pre;
+    });
+  }
+
   Future<void> _load() async {
     setState(() => loading = true);
+
     try {
       final scope = TickinAppScope.of(context);
 
-      final resp = await scope.timelineApi.getTimeline(widget.orderId);
+      String currentOrderId = widget.orderId;
+
+      // 1️⃣ first call
+      final resp = await scope.timelineApi.getTimeline(currentOrderId);
 
       final res = (resp["data"] is Map)
           ? Map<String, dynamic>.from(resp["data"])
           : Map<String, dynamic>.from(resp);
 
-      final metaRaw = res["meta"];
-      meta = (metaRaw is Map) ? Map<String, dynamic>.from(metaRaw) : {};
+      // 🔥 backend sends resolved FULL id
+      final resolvedId =
+          (res["orderId"] ?? res["requestedOrderId"] ?? "")
+              .toString()
+              .trim();
 
-      // ✅ Common neat timeline (backend: neatTimeline)
-      dynamic neatRaw = res["neatTimeline"];
-      if (neatRaw is Map) neatRaw = neatRaw["neatTimeline"];
-      final commonList = (neatRaw is List ? neatRaw : [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+      // 2️⃣ if backend resolved to FULL, re-call
+      if (resolvedId.isNotEmpty && resolvedId != currentOrderId) {
+        currentOrderId = resolvedId;
 
-      // ✅ preMerge: { childOrderId: [steps...] }
-      final preRaw = res["preMerge"];
-      final Map<String, List<Map<String, dynamic>>> pre = {};
-      final isMerged = (meta["isMerged"] == true) || pre.isNotEmpty;
-      neatCommon = commonList;
+        final resp2 = await scope.timelineApi.getTimeline(currentOrderId);
 
-      if (preRaw is Map) {
-        preRaw.forEach((key, value) {
-          final k = key.toString();
-          final list = (value is List ? value : [])
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
-          if (list.isNotEmpty) pre[k] = list;
-        });
-      }
+        final res2 = (resp2["data"] is Map)
+            ? Map<String, dynamic>.from(resp2["data"])
+            : Map<String, dynamic>.from(resp2);
 
-      if (mounted) {
-        setState(() {
-          neatCommon = neatCommon;
-          preMerge = pre;
-        });
+        _applyTimeline(res2, currentOrderId);
+      } else {
+        _applyTimeline(res, currentOrderId);
       }
     } catch (e) {
       toast("❌ Timeline load failed: $e");
@@ -126,9 +161,11 @@ class _OrderUnifiedTrackingScreenState
   Widget build(BuildContext context) {
     final isMerged = (meta["isMerged"] == true) || preMerge.isNotEmpty;
 
+    final titleId = resolvedOrderId.isNotEmpty ? resolvedOrderId : widget.orderId;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text("Tracking ${widget.orderId}"),
+        title: Text("Tracking $titleId"),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
@@ -207,12 +244,9 @@ class _OrderUnifiedTrackingScreenState
     final driver = _s(meta, ["driverName", "driverMobile", "driverId"]);
     final st = _s(meta, ["status", "flowStatus", "currentStatus"]);
 
-    // ✅ show mode line (single vs merged)
     final isMerged = meta["isMerged"] == true;
-    String mode = "Single (D1 only)";
-    if (isMerged) mode = "Merged (D1 + D2)";
+    String mode = isMerged ? "Merged Order" : "Single Order";
 
-    // If backend sends childOrderIds, show count
     final kids = (meta["childOrderIds"] is List)
         ? List.from(meta["childOrderIds"])
         : const [];
@@ -284,7 +318,7 @@ class _OrderUnifiedTrackingScreenState
             const SizedBox(height: 14),
 
             ...steps.map((step) {
-              final title = _s(step, ["title", "key"]);
+              final stepTitle = _s(step, ["title", "key"]);
               final status = _s(step, ["status"]);
               final rawTime = _s(step, ["time"]);
               final time = formatIST(rawTime);
@@ -323,7 +357,7 @@ class _OrderUnifiedTrackingScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            title,
+                            stepTitle,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: current

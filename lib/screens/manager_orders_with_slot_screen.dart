@@ -198,9 +198,6 @@ Future<void> _openTrackingFromFlow(Map<String, dynamic> flow) async {
   final fk = (f["flowKey"] ?? f["orderId"] ?? "").toString().trim();
   if (fk.isEmpty) return false;
   
-  // always include item unless LOC#
-  if (fk.startsWith("LOC#")) return false;
-
   return true;
 }).toList();
       cleaned.sort((a, b) {
