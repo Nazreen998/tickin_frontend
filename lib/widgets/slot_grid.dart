@@ -38,9 +38,9 @@ class SlotGrid extends StatelessWidget {
     /// ✅ Remove duplicates by key (FULL pos, MERGE mergeKey)
     final map = <String, SlotItem>{};
     for (final s in slots) {
-    final key = s.isMerge
-  ? "MERGE#${s.mergeKey ?? s.sk}"   // 🔥 REMOVE time
-  : "FULL#${s.time}#${s.pos ?? ''}";
+      final key = s.isMerge
+          ? "MERGE#${s.mergeKey ?? s.sk}" // 🔥 REMOVE time
+          : "FULL#${s.time}#${s.pos ?? ''}";
       map[key] = s;
     }
 
@@ -170,14 +170,16 @@ class _SlotTile extends StatelessWidget {
     final canShowDist = _canShowDistributor();
     final showDetails = slot.isMerge || label != "AVAILABLE";
 
-    final title =
-        slot.isMerge ? "Merge ${mergeId ?? "-"}" : "Slot ${slot.slotIdLabel}";
+    final title = slot.isMerge
+        ? "Merge ${mergeId ?? "-"}"
+        : "Slot ${slot.slotIdLabel}";
 
     /// ✅ FULL slot time should be based on POS (A/B/C/D)
     /// ✅ MERGE slot timing should NOT show
     final timeTxt = slot.isMerge ? "" : slot.displayTime;
-    final sessionText =
-        slot.isMerge ? slot.sessionLabel : "${slot.sessionLabel} ($timeTxt)";
+    final sessionText = slot.isMerge
+        ? slot.sessionLabel
+        : "${slot.sessionLabel} ($timeTxt)";
 
     final mergeCount = _mergeCountText();
     final participants = _participantsList();
@@ -189,45 +191,45 @@ class _SlotTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-  color: _bg(),
-  borderRadius: BorderRadius.circular(16),
+          color: _bg(),
+          borderRadius: BorderRadius.circular(16),
 
-  // 🔥 BLINK EFFECT
-  border: slot.blink
-      ? Border.all(color: Colors.redAccent, width: 3)
-      : null,
+          // 🔥 BLINK EFFECT
+          border: slot.blink
+              ? Border.all(color: Colors.redAccent, width: 3)
+              : null,
 
-  boxShadow: slot.blink
-      ? [
-          BoxShadow(
-            color: Colors.redAccent.withOpacity(0.7),
-            blurRadius: 14,
-            spreadRadius: 2,
-          ),
-        ]
-      : [],
-),
-       child: Column(
-  mainAxisSize: MainAxisSize.min,
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: [
-    if (slot.isMerge && slot.blink)
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        margin: const EdgeInsets.only(bottom: 4),
-        decoration: BoxDecoration(
-          color: Colors.redAccent,
-          borderRadius: BorderRadius.circular(12),
+          boxShadow: slot.blink
+              ? [
+                  BoxShadow(
+                    color: Colors.redAccent.withOpacity(0.7),
+                    blurRadius: 14,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : [],
         ),
-        child: const Text(
-          "⚠ BLINK",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (slot.isMerge && slot.blink)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                margin: const EdgeInsets.only(bottom: 4),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  "⚠ BLINK",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             Text(
               title,
               style: const TextStyle(
@@ -238,7 +240,7 @@ class _SlotTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            
+
             const SizedBox(height: 4),
 
             Text(
@@ -279,8 +281,7 @@ class _SlotTile extends StatelessWidget {
               if (slot.isMerge) ...[
                 ...(() {
                   final list = participants.where((x) {
-                    final dn =
-                        (x["distributorName"] ?? "").toString().trim();
+                    final dn = (x["distributorName"] ?? "").toString().trim();
                     return dn.isNotEmpty;
                   }).toList();
 
@@ -293,16 +294,16 @@ class _SlotTile extends StatelessWidget {
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
-                      )
+                      ),
                     ];
                   }
 
-                  return list.take(2).map((p) {
-                    final dn =
-                        (p["distributorName"] ?? "-").toString().trim();
+                  return list.take(4).map((p) {
+                    final dn = (p["distributorName"] ?? "-").toString().trim();
                     final amt = p["amount"];
-                    final amtNum =
-                        (amt is num) ? amt : num.tryParse("$amt") ?? 0;
+                    final amtNum = (amt is num)
+                        ? amt
+                        : num.tryParse("$amt") ?? 0;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 3),
@@ -339,7 +340,9 @@ class _SlotTile extends StatelessWidget {
                     ),
                   )
                 else
-                  ...fullLines.take(2).map(
+                  ...fullLines
+                      .take(4)
+                      .map(
                         (n) => Padding(
                           padding: const EdgeInsets.only(bottom: 2),
                           child: Text(
