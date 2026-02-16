@@ -77,44 +77,58 @@ class _OrderUnifiedTrackingScreenState
   bool _isCurrent(String s) => s.toUpperCase() == "CURRENT";
 
   void _applyTimeline(Map<String, dynamic> res, String currentOrderId) {
-    final metaRaw = res["meta"];
-    final newMeta =
-        (metaRaw is Map) ? Map<String, dynamic>.from(metaRaw) : {};
+  // ✅ META (TYPE SAFE)
+  final metaRaw = res["meta"];
+  final Map<String, dynamic> newMeta =
+      (metaRaw is Map<String, dynamic>)
+          ? Map<String, dynamic>.from(metaRaw)
+          : <String, dynamic>{};
 
-    // ✅ neatTimeline
-    dynamic neatRaw = res["neatTimeline"];
-    if (neatRaw is Map) neatRaw = neatRaw["neatTimeline"];
+  // ✅ neatTimeline (TYPE SAFE)
+  dynamic neatRaw = res["neatTimeline"];
+  if (neatRaw is Map<String, dynamic>) {
+    neatRaw = neatRaw["neatTimeline"];
+  }
 
-    final commonList = (neatRaw is List ? neatRaw : [])
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+  final List<Map<String, dynamic>> commonList =
+      (neatRaw is List)
+          ? neatRaw
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()
+          : <Map<String, dynamic>>[];
 
-    // ✅ preMerge
-    final preRaw = res["preMerge"];
-    final Map<String, List<Map<String, dynamic>>> pre = {};
+  // ✅ preMerge (TYPE SAFE)
+  final preRaw = res["preMerge"];
+  final Map<String, List<Map<String, dynamic>>> pre = {};
 
-    if (preRaw is Map) {
-      preRaw.forEach((key, value) {
-        final k = key.toString();
-        final list = (value is List ? value : [])
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
-        if (list.isNotEmpty) pre[k] = list;
-      });
-    }
+  if (preRaw is Map) {
+    preRaw.forEach((key, value) {
+      final k = key.toString();
 
-    if (!mounted) return;
+      final List<Map<String, dynamic>> list =
+          (value is List)
+              ? value
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList()
+              : <Map<String, dynamic>>[];
 
-    setState(() {
-      resolvedOrderId = currentOrderId;
-      meta = newMeta;
-      neatCommon = commonList;
-      preMerge = pre;
+      if (list.isNotEmpty) {
+        pre[k] = list;
+      }
     });
   }
 
+  if (!mounted) return;
+
+  setState(() {
+    resolvedOrderId = currentOrderId;
+    meta = newMeta;
+    neatCommon = commonList;
+    preMerge = pre;
+  });
+}
   Future<void> _load() async {
     setState(() => loading = true);
 
