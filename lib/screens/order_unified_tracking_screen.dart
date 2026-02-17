@@ -46,25 +46,19 @@ class _OrderUnifiedTrackingScreenState
   /// Backend already sends IST string like "14 Feb 2026, 11:11 PM"
   /// so just return it.
   String formatIST(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return "";
-    final s = raw.trim();
+  if (raw == null || raw.trim().isEmpty) return "";
 
-    // if already pretty, keep it
-    final looksPretty =
-        RegExp(r"[A-Za-z]{3}").hasMatch(s) &&
-        RegExp(r"\bAM\b|\bPM\b", caseSensitive: false).hasMatch(s);
+  try {
+    final utc = DateTime.parse(raw).toUtc();
 
-    if (looksPretty) return s;
+    // 🔥 manually convert to IST (+5:30)
+    final ist = utc.add(const Duration(hours: 5, minutes: 30));
 
-    // else parse ISO -> local
-    try {
-      final dt = DateTime.parse(s).toLocal();
-      return DateFormat("dd MMM yyyy, hh:mm a").format(dt);
-    } catch (_) {
-      return s;
-    }
+    return DateFormat("dd MMM yyyy, hh:mm a").format(ist);
+  } catch (_) {
+    return raw;
   }
-
+}
   String _s(Map e, List<String> keys) {
     for (final k in keys) {
       final v = e[k];
@@ -255,7 +249,19 @@ class _OrderUnifiedTrackingScreenState
     if (distributor.trim().isEmpty) distributor = "-";
 
     final vehicleNo = _s(meta, ["vehicleNo", "vehicleType", "vehicle"]);
-    final driver = _s(meta, ["driverName", "driverMobile", "driverId"]);
+    final driverName = _s(meta, ["driverName"]);
+final driverMobile = _s(meta, ["driverMobile"]);
+
+String driver = "-";
+
+if (driverName.isNotEmpty && driverMobile.isNotEmpty) {
+  driver = "$driverName ($driverMobile)";
+} else if (driverName.isNotEmpty) {
+  driver = driverName;
+} else if (driverMobile.isNotEmpty) {
+  driver = driverMobile;
+}
+
     final st = _s(meta, ["status", "flowStatus", "currentStatus"]);
 
     final isMerged = meta["isMerged"] == true;
@@ -334,7 +340,7 @@ class _OrderUnifiedTrackingScreenState
             ...steps.map((step) {
               final stepTitle = _s(step, ["title", "key"]);
               final status = _s(step, ["status"]);
-              final rawTime = _s(step, ["time"]);
+              final rawTime = _s(step, ["time", "createdAt", "updatedAt"]);
               final time = formatIST(rawTime);
 
               final done = _isDone(status);
